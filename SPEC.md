@@ -14,18 +14,43 @@ Spoken instructions drift toward describing the task; the finish line is what ke
 - After every step that goes green: commit. `git log` is the proof of continuous work.
 - No new dependency without saying it out loud first. Dependency count stays low.
 
+## The three surfaces
+
+The loop produces three observable points between your mouth and the agent's context:
+
+| | Surface | How it is read | What loss between here and here means |
+|---|---|---|---|
+| **A** | The audio you spoke | MLX Whisper, local | speech recognition error |
+| **B** | The text Wispr delivered | Scratchpad, via MCP | dictation cleanup and formatting |
+| **C** | The text the agent received | screen, via OCR | paste loss, or manual edits |
+
+Scoring A→B and B→C separately is the point. A single A→C number tells you something broke.
+Three numbers tell you **which stage broke**, which is the only version of this that is worth
+building. Homophone errors show up at A. Rewrites show up at B. Disappearing lines show up at C.
+
+Wispr Flow's MCP server exposes meetings, calendar, and Scratchpad, and **no dictation history**,
+by design. That is why surface A has to be captured from the microphone: no official surface
+exposes it. Treat that as a finding to report, not a gap to apologise for.
+
 ## Definition of done
 
-`pytest` green, `passthru report` produces one HTML file from one capture, and the README's
-"what it does not claim" section is still true at the end.
+`pytest` green, `passthru report` produces one HTML file from one capture across all three
+surfaces, and the README's "what it does not claim" section is still true at the end.
 
 ---
 
+## Step 0 — Pull surface B
+
+**Outcome:** one command prints the latest Scratchpad note as plain text, so the agent can read what dictation delivered without copy-paste.
+**Location:** `src/passthru/scratchpad.py`
+**Constraints:** use the Wispr MCP endpoint at api.wisprflow dot ai slash connect slash mcp over stdio or HTTP, not the Python SDK, so there is no extra dependency to install. Print the note body and nothing else, no progress chatter. If the MCP is unreachable or there are no notes, say which one it was in a single line and exit non-zero. Never print anything that looks like a credential.
+**Verification:** run it with no notes present and confirm the error message names the real cause. Run it after dictating into Scratchpad and confirm the text comes back.
+
 ## Step 1 — Token survival scorer (the core)
 
-**Outcome:** given two strings, return what fraction of the spoken tokens survived into the received text.
+**Outcome:** given two strings, the text before a stage and the text after it, return what fraction of tokens survived that stage, plus the list of which ones survived.
 **Location:** `src/passthru/score.py`
-**Constraints:** pure function, no I/O, no model calls, stdlib plus numpy only. Must return the surviving-token list alongside the ratio, not just the number.
+**Constraints:** pure function, no I/O, no model calls, stdlib plus numpy only. Must return the surviving-token list alongside the ratio, not just the number. Must be callable on any pair of stages, so the same function scores A→B, B→C, and A→C.
 **Verification:** `pytest tests/test_score.py` green. Tests must include the homophone case: "their / there / they're" is a near miss and must count as survived, per the published finding that homophone substitution costs nothing.
 
 ## Step 2 — Alignment
