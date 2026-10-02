@@ -1,0 +1,1 @@
+Refactor the authentication module so that token refresh happens in a single place and every caller uses it.

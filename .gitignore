@@ -1,0 +1,34 @@
+# Environments
+.venv/
+venv/
+
+# Dependencies - never let an agent read or hand-edit these
+node_modules/
+package-lock.json
+pnpm-lock.yaml
+yarn.lock
+bun.lockb
+poetry.lock
+uv.lock
+Cargo.lock
+
+# Generated
+dist/
+build/
+.next/
+.turbo/
+coverage/
+*.min.js
+*.min.css
+*.map
+
+# Passthru output
+reports/*.html
+captures/
+*.wav
+*.m4a
+*.mp4
+*.mov
+
+# macOS
+.DS_Store
