@@ -112,6 +112,24 @@ verification pass, and was only caught because each test pins a defect that actu
 occurred. The corpus checks what the numbers say. The tests check that the machinery is
 still saying them correctly.
 
+## What was added after the recording
+
+The submission video records the six dictated modules above. Three things were built
+afterwards and are **not** in that video:
+
+1. **The test suite** (`tests/test_passthru.py`, 35 tests). Each pins a defect that
+   actually occurred. It found three that had already shipped.
+2. **The in-page scorer and embedded audio.** A judge could read the findings but could
+   not try the tool or hear the evidence. `src/passthru/browser.js` is a port of
+   `score.py`'s tokenizer with an LCS diff; it reproduces the Python numbers exactly on
+   all three captures.
+3. **The `passthru-scratchpad` entry point.** The README referenced a command that was
+   never declared.
+
+These are agent-authored and not dictated. If the video is meant to show the whole
+project, they need a short addendum take, or the README should say the video covers the
+six core modules.
+
 ## What is not claimed
 
 - The three captures are n=1 per setting. They show an effect, not a distribution.

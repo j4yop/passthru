@@ -19,11 +19,11 @@ mid-sentence retraction never reach the agent. **Nothing errors.** The prompt si
 arrives with its specifications missing, and the agent builds something from a spec that
 no longer contains the file it was supposed to create.
 
-**Read the report: [live demo →](https://j4yop.github.io/passthru/)** · [`reports/index.html`](reports/index.html)
+**Try it live → [passthru-ebon.vercel.app](https://passthru-ebon.vercel.app)** · source: [`reports/index.html`](reports/index.html)
 
-One self-contained HTML file. No build step, nothing fetched: styles, scorer and all three
-audio clips are embedded, so it renders identically from that URL, from this repository, and
-from a local file path.
+One self-contained HTML file, 1.8 MB. No build step and nothing fetched: styles, scorer and
+all three audio clips are embedded, so it renders identically from that URL and from a local
+file path.
 
 On the page you can **play the actual voice** behind each run and then read what reached the
 agent, and **score your own dictation** by pasting what you said and what arrived. Nothing is
@@ -31,6 +31,9 @@ uploaded; the scorer runs in the page.
 
 Every finding is also written out in static text, so the document reads correctly with
 JavaScript disabled — the scripting is an enhancement, not a dependency.
+
+Deployed on Vercel as a static build; `vercel.json` declares it static so the presence of a
+`pyproject.toml` is not mistaken for a Python service.
 
 ## Why this isn't a tokenizer toy
 
