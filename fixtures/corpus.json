@@ -83,6 +83,13 @@
           "label": "u1 test/tokenizer",
           "received": "Add a test file called test\\_score.py that tests the tokenizer and make sure it covers the trailing period case. score.py followed by a full stop must not be treated as a different token. Only use the standard library, not pytest, because we want it to run without installing anything. The threshold should be 0.7 not 0.5",
           "note_id": "63f22616-4e2e-46c2-9c72-ffa48ca95664"
+        },
+        {
+          "id": "u1",
+          "auto_cleanup": "Medium",
+          "label": "u1 test/tokenizer",
+          "received": "Add a test file called test\\_score.py that tests the tokenizer and make sure it covers the trailing period case. score.py. must not be treated as a different token. Only use the standard library, not pytest, because we want it to run without installing anything. The threshold should be 0.7, not 0.5 and utterance",
+          "note_id": "70d11e53-a0ab-4428-b41e-9ca0099a1c07"
         }
       ]
     }
