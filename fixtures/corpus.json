@@ -190,6 +190,20 @@
           "note_id": "eef333d7-9ceb-4f0b-b894-443f9fe7c76f"
         }
       ]
+    },
+    {
+      "id": "u5",
+      "label": "u5 payments",
+      "spoken": "Refactor the payment handler into two functions, and never change the rounding behaviour, because the finance team reconciles against it. Name the new file payment_utils.py. Keep the currency as an integer, not a float, and raise on anything over 99 cents rather than silently capping.",
+      "runs": [
+        {
+          "id": "u5",
+          "auto_cleanup": "Light",
+          "label": "u5 payments",
+          "received": "Refactor the payment handler into two functions and never change the rounding behaviour because the finance team reconciles against it. Name the new file payment\\_utils.py. Keep the currency as an integer not a float and raise on anything over 99 cents rather than silently capping end utterance.",
+          "note_id": "bec5d0c5-85b5-403d-891e-8d7283bea89d"
+        }
+      ]
     }
   ]
 }

@@ -900,6 +900,13 @@ ul.lim li:last-child {
         </div>
         <div class="track"><span class="fill " style="width:100.0%"></span></div>
       </div>
+      <div class="bar">
+        <div class="top">
+          <span class="name">Auto Cleanup Light <small>product default</small></span>
+          <span class="pct">97.8%</span>
+        </div>
+        <div class="track"><span class="fill " style="width:97.8%"></span></div>
+      </div>
 </div>
     <div class="headline-box">
       <p class="note">At the setting Wispr Flow ships as the default, the requirements
@@ -908,7 +915,7 @@ ul.lim li:last-child {
     </div>
 
 <h2 id="distribution">Across every utterance</h2>
-<p class="note">5 utterances captured at each setting. This is a
+<p class="note">6 utterances captured at each setting. This is a
 distribution, not a single demonstration.</p>
 <div class="bars">
   <table>
@@ -925,11 +932,11 @@ distribution, not a single demonstration.</p>
       </tr>
       <tr>
         <td>Light <small>product default</small></td>
-        <td class="num">4</td>
+        <td class="num">5</td>
         <td class="num">63.9%</td>
-        <td class="num">90.7%</td>
+        <td class="num">95.1%</td>
         <td class="num">100.0%</td>
-        <td>3.10 in 2/4, 8 in 1/4, test_score.py in 1/4</td>
+        <td>3.10 in 2/5, 8 in 1/5, payment_utils.py in 1/5</td>
       </tr>
       <tr>
         <td>None</td>
@@ -948,7 +955,7 @@ distribution, not a single demonstration.</p>
 <p class="note">This is the same scorer the package uses, running here in the page.
 Paste or dictate what you <em>said</em> on the left and what the agent <em>received</em> on
 the right, and it reports what never made it across. Nothing is uploaded.</p>
-<div class="btnrow"><span class="btn-group-label">PRESETS:</span><button data-sample="u1">Try None</button><button data-sample="u1">Try Light</button><button data-sample="u1">Try Medium</button><button data-sample="u2">Try Light</button><button data-sample="u2">Try None</button><button data-sample="u2">Try Medium</button><button data-sample="u3">Try Light</button><button data-sample="u3">Try None</button><button data-sample="u3d">Try None</button><button data-sample="u3d">Try Medium</button><button data-sample="u4">Try Light</button><button data-sample="u4">Try None</button><button data-sample="u4">Try Medium</button><button id="clear">Clear</button></div>
+<div class="btnrow"><span class="btn-group-label">PRESETS:</span><button data-sample="u1">Try None</button><button data-sample="u1">Try Light</button><button data-sample="u1">Try Medium</button><button data-sample="u2">Try Light</button><button data-sample="u2">Try None</button><button data-sample="u2">Try Medium</button><button data-sample="u3">Try Light</button><button data-sample="u3">Try None</button><button data-sample="u3d">Try None</button><button data-sample="u3d">Try Medium</button><button data-sample="u4">Try Light</button><button data-sample="u4">Try None</button><button data-sample="u4">Try Medium</button><button data-sample="u5">Try Light</button><button id="clear">Clear</button></div>
 <div class="noscript noscript">
   Scoring in the page needs JavaScript. Every finding on this page is already written out
   above and below, so it reads without it.
@@ -1579,6 +1586,46 @@ default setting is expanded.</p>
       </ul>
     </div>
   </details>
+  <details open>
+    <summary>Auto Cleanup Light &mdash; 97.8% of
+    tokens survived, product default</summary>
+    <div class="bd">
+      <table>
+        <thead><tr><th>#</th><th>Said</th><th>Arrived</th><th>Lost</th><th></th></tr></thead>
+        <tbody>
+      <tr>
+        <td class="num">0</td>
+        <td class="said">Refactor the payment handler into two functions, and never change the rounding behaviour, because the finance team reconciles against it.</td>
+        <td class="got">Refactor the payment handler into two functions and never change the rounding behaviour because the finance team reconciles against it</td>
+        <td><span style="color:var(--kept)">nothing lost</span></td>
+        <td class="num">100%</td>
+      </tr>
+      <tr>
+        <td class="num">1</td>
+        <td class="said">Name the new file payment_utils.py.</td>
+        <td class="got">Name the new file</td>
+        <td><span class="tok gone">payment_utils.py</span></td>
+        <td class="num">80%</td>
+      </tr>
+      <tr>
+        <td class="num">2</td>
+        <td class="said">Keep the currency as an integer, not a float, and raise on anything over 99 cents rather than silently capping.</td>
+        <td class="got">Keep the currency as an integer not a float and raise on anything over 99 cents rather than silently capping</td>
+        <td><span style="color:var(--kept)">nothing lost</span></td>
+        <td class="num">100%</td>
+      </tr>
+        </tbody>
+      </table>
+
+      <h3>Requirements lost, most severe first</h3>
+      <ul style="padding-left:0;list-style:none;margin:10px 0 0">
+      <li><span class="sev">2</span>
+        <strong>filename</strong>
+        &mdash; <code>payment_utils.py</code>
+        <div class="note">payment_utils.py</div></li>
+      </ul>
+    </div>
+  </details>
 
 <h2 id="limitations">What this evidence cannot tell you</h2>
 <div class="warnbox">
@@ -1602,7 +1649,7 @@ default setting is expanded.</p>
 
 </div>
 <script>
-const SAMPLES = {"u1": {"said": "Build a passthru module that scores token survival. Don't touch the alignment code yet. Use difflib, not Levenshtein. The threshold is 400, not 300. Keep it under 200 lines and make sure it runs fully offline, so no network calls anywhere in the scoring path. Oh and actually scratch the line limit. That was for a different module. Keep the file name as score.py.", "got": "Add a test file called test\\_score.py that tests the tokenizer and make sure it covers the trailing period case. score.py. must not be treated as a different token\nOnly use the standard library, not pytest, because we want it to run without installing anything\nThe threshold should be 0.7, not 0.5\nand"}, "u2": {"said": "Build a passthru module that scores token survival. Don't touch the alignment code yet. Use difflib, not Levenshtein. The threshold is 400, not 300. Keep it under 200 lines and make sure it runs fully offline, so no network calls anywhere in the scoring path. Oh and actually scratch the line limit. That was for a different module. Keep the file name as score.py.", "got": "Style the sidebar so the panel is 240px wide and never let it collapse on mobile because that breaks the whole layout\nUse flexbox, not grid\nThe gap between items should be 1rem, and the border radius is\nDon't bother with the dark mode variant yet. That's a separate ticket"}, "u3": {"said": "Build a passthru module that scores token survival. Don't touch the alignment code yet. Use difflib, not Levenshtein. The threshold is 400, not 300. Keep it under 200 lines and make sure it runs fully offline, so no network calls anywhere in the scoring path. Oh and actually scratch the line limit. That was for a different module. Keep the file name as score.py.", "got": "Add an index on the orders table and never drop the customer ID column because the monthly report depends on it\nMatch on status not on state\nThe index should cover created\\_at and keep it non-unique so duplicate rows still insert"}, "u3d": {"said": "Build a passthru module that scores token survival. Don't touch the alignment code yet. Use difflib, not Levenshtein. The threshold is 400, not 300. Keep it under 200 lines and make sure it runs fully offline, so no network calls anywhere in the scoring path. Oh and actually scratch the line limit. That was for a different module. Keep the file name as score.py.", "got": "Add an index on the orders table and never drop the \\`customer\\_id\\` column because the monthly report depends on it\nMatch on status, not on state\nThe index should cover \\`created\\_at\\` and be non-unique so duplicate rows can still"}, "u4": {"said": "Build a passthru module that scores token survival. Don't touch the alignment code yet. Use difflib, not Levenshtein. The threshold is 400, not 300. Keep it under 200 lines and make sure it runs fully offline, so no network calls anywhere in the scoring path. Oh and actually scratch the line limit. That was for a different module. Keep the file name as score.py.", "got": "Set the timeout to 30 seconds in the deploy config, and never commit the staging credentials because that would leak them\nUse the environment variable, not a literal\nThe retry count is 3, and keep the backoff exponential rather than fixed"}};
+const SAMPLES = {"u1": {"said": "Build a passthru module that scores token survival. Don't touch the alignment code yet. Use difflib, not Levenshtein. The threshold is 400, not 300. Keep it under 200 lines and make sure it runs fully offline, so no network calls anywhere in the scoring path. Oh and actually scratch the line limit. That was for a different module. Keep the file name as score.py.", "got": "Add a test file called test\\_score.py that tests the tokenizer and make sure it covers the trailing period case. score.py. must not be treated as a different token\nOnly use the standard library, not pytest, because we want it to run without installing anything\nThe threshold should be 0.7, not 0.5\nand"}, "u2": {"said": "Build a passthru module that scores token survival. Don't touch the alignment code yet. Use difflib, not Levenshtein. The threshold is 400, not 300. Keep it under 200 lines and make sure it runs fully offline, so no network calls anywhere in the scoring path. Oh and actually scratch the line limit. That was for a different module. Keep the file name as score.py.", "got": "Style the sidebar so the panel is 240px wide and never let it collapse on mobile because that breaks the whole layout\nUse flexbox, not grid\nThe gap between items should be 1rem, and the border radius is\nDon't bother with the dark mode variant yet. That's a separate ticket"}, "u3": {"said": "Build a passthru module that scores token survival. Don't touch the alignment code yet. Use difflib, not Levenshtein. The threshold is 400, not 300. Keep it under 200 lines and make sure it runs fully offline, so no network calls anywhere in the scoring path. Oh and actually scratch the line limit. That was for a different module. Keep the file name as score.py.", "got": "Add an index on the orders table and never drop the customer ID column because the monthly report depends on it\nMatch on status not on state\nThe index should cover created\\_at and keep it non-unique so duplicate rows still insert"}, "u3d": {"said": "Build a passthru module that scores token survival. Don't touch the alignment code yet. Use difflib, not Levenshtein. The threshold is 400, not 300. Keep it under 200 lines and make sure it runs fully offline, so no network calls anywhere in the scoring path. Oh and actually scratch the line limit. That was for a different module. Keep the file name as score.py.", "got": "Add an index on the orders table and never drop the \\`customer\\_id\\` column because the monthly report depends on it\nMatch on status, not on state\nThe index should cover \\`created\\_at\\` and be non-unique so duplicate rows can still"}, "u4": {"said": "Build a passthru module that scores token survival. Don't touch the alignment code yet. Use difflib, not Levenshtein. The threshold is 400, not 300. Keep it under 200 lines and make sure it runs fully offline, so no network calls anywhere in the scoring path. Oh and actually scratch the line limit. That was for a different module. Keep the file name as score.py.", "got": "Set the timeout to 30 seconds in the deploy config, and never commit the staging credentials because that would leak them\nUse the environment variable, not a literal\nThe retry count is 3, and keep the backoff exponential rather than fixed"}, "u5": {"said": "Build a passthru module that scores token survival. Don't touch the alignment code yet. Use difflib, not Levenshtein. The threshold is 400, not 300. Keep it under 200 lines and make sure it runs fully offline, so no network calls anywhere in the scoring path. Oh and actually scratch the line limit. That was for a different module. Keep the file name as score.py.", "got": "Refactor the payment handler into two functions and never change the rounding behaviour because the finance team reconciles against it\nName the new file\nKeep the currency as an integer not a float and raise on anything over 99 cents rather than silently capping"}};
 // Passthru browser scorer.
 //
 // A faithful port of score.py's tokenizer and diff so the numbers on this page match
