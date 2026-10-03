@@ -52,6 +52,13 @@ _KEEP = re.compile(
 _CHOICE = re.compile(
     r"\b([\w.+#-]+)\s*(?:,)?\s*(?:not|rather than|instead of)\s+([\w.+#-]+)", re.IGNORECASE
 )
+# "do not touch the file" is a prohibition, not a choice between "do" and "touch".
+# Without this guard every negation produces a phantom choice requirement.
+_NEGATION_AUX = {
+    "do", "does", "did", "is", "are", "was", "were", "be", "been", "being",
+    "will", "would", "can", "could", "should", "shall", "must", "may", "might",
+    "have", "has", "had", "am", "don", "dont", "doesn", "didn", "isn", "aren",
+}
 _TERM = re.compile(r"\b(?:use|using|with)\s+([A-Z][\w.+#-]*|[\w-]+\.[\w.]+)", re.IGNORECASE)
 
 _STOPWORDS = {
@@ -165,6 +172,9 @@ def extract(utterance: str) -> list[Requirement]:
 
     for match in _CHOICE.finditer(text):
         chosen, rejected = match.group(1), match.group(2)
+        if chosen.lower().strip(".,;:") in _NEGATION_AUX:
+            # A negation, not a preference. The prohibition pass already has it.
+            continue
         add("choice", f"use {chosen}, not {rejected}", rejected)
         add("term", f"use {chosen}", chosen)
 

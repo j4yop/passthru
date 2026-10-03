@@ -220,6 +220,20 @@ def test_advice_recommends_a_change_only_where_something_was_lost(views):
     assert not by_run["none"].has_recommendation
 
 
+def test_advice_refusal_states_the_right_reason(views):
+    """Mutation: deleting the "nothing was lost" branch still refused, but for the
+    wrong reason, saying the cause was unidentifiable when in fact nothing was lost.
+    The reason text has to be pinned, not merely the fact of refusal."""
+    by_run = {a.run_id: a for a in advise(views)}
+    nothing_lost = by_run["none"].reason.lower()
+    assert "nothing was lost" in nothing_lost
+    assert "not identifiable" not in nothing_lost
+
+    light = by_run["light"]
+    assert light.has_recommendation
+    assert "difference between them" in light.reason.lower()
+
+
 def test_advice_refuses_without_a_comparison_run(views):
     light = next(v for v in views if v.run_id == "light")
     refused = advise([light])[0]
@@ -385,3 +399,105 @@ def test_multiword_survival_threshold_is_enforced():
 
     # Nothing of it arrived: still a loss.
     assert any(not r.survived for r in mark_lost(reqs, "something else entirely"))
+
+
+# --- tests for the guards added by the security audit ------------------------
+# Mutation testing showed all three of these guards could be deleted and the suite
+# would still pass, so each one is now pinned directly.
+
+def test_load_audio_refuses_ids_that_climb_out(tmp_path):
+    """A run_id is corpus data, not a path.
+
+    Without the guard, a corpus containing a run_id of '../secret' made the report
+    read an arbitrary .mp3 outside the audio directory and embed it base64, in a file
+    that then gets published.
+    """
+    from passthru.report import load_audio
+
+    audio = tmp_path / "audio"
+    audio.mkdir()
+    (tmp_path / "secret.mp3").write_bytes(b"PRIVATE")
+    (audio / "light.mp3").write_bytes(b"PUBLIC")
+
+    out = load_audio(audio, ["../secret", "light", "../../etc/passwd"])
+
+    assert "light" in out, "a legitimate id must still resolve"
+    assert "../secret" not in out
+    assert "../../etc/passwd" not in out
+    assert all("PRIVATE" not in v for v in out.values())
+
+
+def test_corpus_text_cannot_terminate_the_script_element(views):
+    """A note containing '</script>' must not escape the inline script block.
+
+    The static HTML body is escaped; the JSON payload handed to the in-page scorer was
+    not, so a crafted corpus could inject markup into a published report.
+    """
+    from passthru.report import render
+
+    hostile = "Build a module</script><script>alert(document.cookie)</script> keep score.py"
+    view = from_corpus(
+        {
+            "spoken_ground_truth": hostile,
+            "runs": [{"id": "x", "auto_cleanup": "None", "label": "", "received": hostile}],
+        }
+    )
+    html = render(view, ["n=1"], spoken=hostile, audio={})
+
+    marker = html.find("const SAMPLES")
+    assert marker != -1, "expected the in-page scorer payload"
+    tail = html[marker:]
+    # Exactly one closing script tag in the tail: the real one that ends the block.
+    assert tail.count("</script>") == 1, "corpus text closed the script element early"
+    # No raw tag opener smuggled in from the corpus.
+    assert "<script" not in tail.replace("<script>", "")
+    # The hostile words still round-trip as inert JSON *data*, which is what lets the
+    # page show a judge what the corpus contained. What must not survive is the
+    # unescaped bracket that would turn that data back into markup.
+    assert "\\u003c/script\\u003e" in tail
+    assert "</script><script>" not in tail
+    assert "score.py" in tail
+
+
+def test_render_checked_rejects_a_claim_of_accuracy():
+    """The tokens-only guard must actually raise, not merely be documented."""
+    from passthru.advice import Advice, render, render_checked
+
+    bad = Advice(
+        run_id="x",
+        auto_cleanup="Light",
+        setting="auto_cleanup",
+        change_to="None",
+        reason="This will improve accuracy.",
+        evidence="e",
+        would_recover=["200"],
+    )
+    assert "accuracy" in render([bad]).lower(), "sanity: the text does claim accuracy"
+
+    with pytest.raises(ValueError) as excinfo:
+        render_checked([bad])
+    assert "accuracy" in str(excinfo.value)
+
+    # And a clean advice passes.
+    clean = Advice(
+        run_id="x", auto_cleanup="Light", setting="auto_cleanup", change_to="None",
+        reason="Recovers the tokens.", evidence="e", would_recover=["200"],
+    )
+    assert render_checked([clean])
+
+
+def test_negation_is_not_mistaken_for_a_choice():
+    """"Do not touch X" is a prohibition. Read as a choice it invents a requirement
+    ("use do, not touch") that never existed, which is the false-positive direction."""
+    for phrasing in (
+        "Do not touch the alignment code",
+        "Don't touch the alignment code yet",
+        "Never remove the token index",
+    ):
+        kinds = {r.kind for r in extract(phrasing)}
+        assert "prohibition" in kinds, phrasing
+        assert "choice" not in kinds, f"{phrasing!r} produced a phantom choice"
+
+    # Real preferences must still be detected.
+    assert "choice" in {r.kind for r in extract("Use difflib, not Levenshtein")}
+    assert "choice" in {r.kind for r in extract("Use SQLite not Postgres")}

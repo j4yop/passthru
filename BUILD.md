@@ -137,3 +137,48 @@ six core modules.
 - The spoken side is the known script; a separate local ASR engine read the same audio and
   disagreed with Wispr in both directions. Neither is treated as ground truth here, and
   that disagreement is itself part of the finding.
+
+## The audit
+
+Before submission the whole system was audited by **mutation testing**: break working code
+in a specific way, run the suite, and see whether it notices. Reading the code finds what
+you already know; this found what I did not.
+
+**Two vulnerabilities, both from trusting the corpus.** A corpus is data from a Scratchpad
+note, a microphone, or whoever ran the tool last. Neither was treated as such.
+
+1. A note containing `</script>` closed the inline script element, so the remainder of the
+   note executed as markup in the published report. The static HTML body was escaped; the
+   JSON payload handed to the in-page scorer was not.
+2. A `run_id` of `../secret` made `load_audio` read a file outside the audio directory and
+   embed it base64 in a report that then gets published. Ids are now resolved and required
+   to sit directly under the audio root.
+
+**Five coverage gaps**, each a mutation that passed the whole suite while the code was broken:
+
+| Mutation | Why the suite was blind |
+|---|---|
+| `score_stage` delete branch disabled | No test exercised dropped tokens at all |
+| survival threshold 0.7 → 0.1 | The multi-word threshold was never asserted |
+| prohibition severity 5 → 1 | Severity ordering had no cross-kind test |
+| every ratio shifted together | No test pinned a headline number absolutely |
+| all three security guards deleted | I fixed them without writing tests first |
+
+The absolute-anchor gap was the serious one. `fixtures/corpus.json` declared
+`survival_range` and `must_keep` for every run and **nothing read them**, so the only
+checks compared runs against each other. Every ratio could drift together and the suite
+would have stayed green. They are enforced now.
+
+**Two real bugs the audit surfaced incidentally:**
+
+- `extract` read *"do not touch the alignment code"* as a choice between `do` and `touch`,
+  inventing a requirement that never existed. Every negation produced a phantom choice.
+- Stale `__pycache__` bytecode masked a genuine test failure and had to be cleared before
+  the result was trustworthy. Worth knowing if the numbers ever look wrong.
+
+**Dead code removed:** `advice.to_dict` had no callers. `fixtures/spoken_01.txt` was tracked
+by git and referenced by nothing.
+
+Result: 45 tests. Re-running the full mutation set, **every mutation is caught and nothing
+survives.** Each test pins a defect that actually occurred rather than a hypothetical one,
+which is the only kind that has caught anything so far.

@@ -21,7 +21,7 @@ generated sentence contains the word. The constraint is enforced, not just docum
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any, Iterable
+from typing import Iterable
 
 from .report import RunView
 
@@ -173,21 +173,3 @@ def render_checked(advices: list[Advice]) -> str:
                 "recommendations are scoped to tokens"
             )
     return text
-
-
-def to_dict(advices: list[Advice]) -> list[dict[str, Any]]:
-    """JSON-friendly form."""
-    return [
-        {
-            "run_id": a.run_id,
-            "auto_cleanup": a.auto_cleanup,
-            "recommended_change": (
-                {a.setting: a.change_to} if a.has_recommendation else None
-            ),
-            "reason": a.reason,
-            "evidence": a.evidence,
-            "would_recover": a.would_recover,
-            "scope": a.scope,
-        }
-        for a in advices
-    ]
