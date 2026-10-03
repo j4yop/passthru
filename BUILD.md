@@ -130,9 +130,56 @@ These are agent-authored and not dictated. If the video is meant to show the who
 project, they need a short addendum take, or the README should say the video covers the
 six core modules.
 
+## After the video: five utterances
+
+The three captures behind the video were n=1 per setting, which is the weakest thing about
+the project. Two more utterances were dictated afterwards, which is what changed the project
+most.
+
+**The finding inverted.** One utterance made cleanup look catastrophic and raw passthrough
+look perfect. Five showed that Medium *beat* raw passthrough on `u5`, and that the real story
+is variance: None spans 7.2 points, Light 36.1, Medium 41.0. The README and report were
+rewritten around spread rather than averages, and "cleanup costs you 35% of your tokens" —
+a claim that was true of one utterance and false as a general statement — is gone.
+
+**The prohibition inversion was found and is now the headline.** `no pytest` arriving as
+`not pytest` at both rewrite settings, and correctly at both raw ones.
+
+**Three real bugs surfaced, all of them invisible to a single utterance:**
+
+1. Advice drew witnesses from the whole corpus, not the same utterance. `u1` at None was told
+   to switch to Light because `u2`'s Light run lacked tokens `u2` never mentioned. A
+   different utterance's silence is not evidence a token survives.
+2. Advice compared a filtered view against an unfiltered one, so the two sides of its own
+   comparison disagreed about what counted as lost.
+3. Numeric requirements drove recommendations: "Set auto_cleanup to Light. That recovers 99"
+   — advice manufactured from the scorer's own noise, since `99` arriving as `ninety nine`
+   keeps its meaning intact.
+
+On the full corpus, advice now makes **zero recommendations across sixteen runs**, because
+after excluding numbers and filenames the remaining losses are the backslash escape, which
+happens in recognition and which no setting touches. That is the correct output, and it is
+the reason the tool is worth having: it declines to guess.
+
+**Also fixed after recording:** the CLI validator only understood corpus version 1, so the
+report stopped generating entirely once the corpus moved to version 2. Sample payloads were
+keyed on run id, and run ids repeat across captures, so all but the last of each group
+silently overwrote the others and several preset buttons shared one dataset.
+
+Tests written against the first utterance were rewritten rather than deleted, because they
+had encoded the wrong belief. "Raw passthrough is never the worst" is false — `u5` disproves
+it — and it now says so while asserting the thing that *is* true, that raw passthrough has a
+floor and neither rewrite setting does.
+
+**Not dictated:** `capture.py`, the test suite, `browser.js`, `scripts/check-parity.mjs`,
+the audit, and the rewritten README and this file. That is a large share of the repository.
+An addendum take covering those would close the gap; without one, this section is the honest
+record of it.
+
 ## What is not claimed
 
-- The three captures are n=1 per setting. They show an effect, not a distribution.
+- The five captures are n=5, one speaker, one session per day. They show an effect and its
+  spread, not a distribution. No confidence interval is claimed.
 - Reading pace was not matched across runs. Uncontrolled.
 - The spoken side is the known script; a separate local ASR engine read the same audio and
   disagreed with Wispr in both directions. Neither is treated as ground truth here, and
@@ -179,6 +226,5 @@ would have stayed green. They are enforced now.
 **Dead code removed:** `advice.to_dict` had no callers. `fixtures/spoken_01.txt` was tracked
 by git and referenced by nothing.
 
-Result: 45 tests. Re-running the full mutation set, **every mutation is caught and nothing
-survives.** Each test pins a defect that actually occurred rather than a hypothetical one,
+Result at that point: 45 tests, every mutation caught. Each test pins a defect that actually occurred rather than a hypothetical one,
 which is the only kind that has caught anything so far.
