@@ -81,7 +81,20 @@ class Requirement(NamedTuple):
     """Set by `mark_lost`; True when the load-bearing token reached the agent."""
 
 
-_CONTRACTION = re.compile(r"\b(don|doesn|didn|isn|aren|wasn|weren|can|won|couldn|shouldn|wouldn|hasn|haven|hadn|it|that|what|there)'(?=[a-z])", re.IGNORECASE)
+_CONTRACTIONS = {
+    "don't": "do not", "dont": "do not", "doesn't": "does not", "doesnt": "does not",
+    "didn't": "did not", "didnt": "did not", "isn't": "is not", "isnt": "is not",
+    "aren't": "are not", "arent": "are not", "wasn't": "was not", "wasnt": "was not",
+    "weren't": "were not", "werent": "were not", "can't": "cannot", "cant": "cannot",
+    "won't": "will not", "wont": "will not", "couldn't": "could not",
+    "shouldn't": "should not", "wouldn't": "would not", "hasn't": "has not",
+    "haven't": "have not", "hadn't": "had not", "it's": "it is", "what's": "what is",
+    "that's": "that is", "there's": "there is", "let's": "let us",
+}
+_CONTRACTION = re.compile(
+    r"\b(" + "|".join(sorted(map(re.escape, _CONTRACTIONS), key=len, reverse=True)) + r")\b",
+    re.IGNORECASE,
+)
 _WORD = re.compile(r"[\w.+#-]+")
 _TRAILING = "._"
 
@@ -112,9 +125,13 @@ def _significant(value: str) -> list[str]:
 
 
 def _normalise(text: str) -> str:
-    """Expand contractions so `don't` matches a spoken `do not`."""
-    expanded = _CONTRACTION.sub(r"\1 ", text or "")
-    return expanded.lower()
+    """Expand contractions so `don't` is recognised as `do not`.
+
+    Expanding to `do not` rather than splitting the apostrophe matters: the prohibition
+    and keep patterns match on `do not`, and a bare `don t` matched neither, which
+    silently stopped every prohibition being detected.
+    """
+    return _CONTRACTION.sub(lambda m: _CONTRACTIONS[m.group(0).lower()], text or "").lower()
 
 
 def extract(utterance: str) -> list[Requirement]:

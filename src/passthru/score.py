@@ -76,15 +76,16 @@ def tokenize_spans(
         cleaned = re.sub(re.escape(phrase), " ", cleaned, flags=re.IGNORECASE)
     spans: list[tuple[str, int, int]] = []
     for match in TOKEN_PATTERN.finditer(cleaned):
-        token = match.group().lower().strip(_TRAILING)
-        if not token:
+        raw = match.group()
+        # rstrip only. Stripping both ends would turn the dotfile `.env` into `env`.
+        trimmed = raw.rstrip(_TRAILING)
+        if not trimmed:
             continue
-        # Re-derive offsets after stripping, so callers slice the right text.
-        start, end = match.span()
-        trimmed = match.group().strip(_TRAILING)
-        start += len(match.group()) - len(trimmed)
-        end = start + len(trimmed)
-        spans.append((token, start, end))
+        # Only the tail was removed, so the start is unchanged and the end pulls back.
+        # Shifting the start forward here would slice mid-token for callers that read
+        # text back out by span, which is how "thing." turned into "hing.".
+        start = match.start()
+        spans.append((trimmed.lower(), start, start + len(trimmed)))
     return spans
 
 
@@ -97,7 +98,9 @@ def score_stage(before: str, after: str, strip: tuple[str, ...] = DEFAULT_STRIP)
     dst = tokenize(after, strip)
 
     if not src:
-        return Survival(ratio=1.0 if not dst else 0.0, spoken=0, survived=[], lost=[])
+        # Nothing was said, so nothing was lost. Insertions are not losses, so arriving
+        # text does not make this a failure.
+        return Survival(ratio=1.0, spoken=0, survived=[], lost=[])
 
     matcher = difflib.SequenceMatcher(None, src, dst, autojunk=False)
     survived: list[str] = []

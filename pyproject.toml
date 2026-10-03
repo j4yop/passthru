@@ -13,6 +13,7 @@ dependencies = [
 
 [project.scripts]
 passthru = "passthru.cli:main"
+passthru-scratchpad = "passthru.scratchpad:cli"
 
 [build-system]
 requires = ["hatchling"]

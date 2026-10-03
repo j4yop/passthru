@@ -231,3 +231,40 @@ def main(argv: list[str] | None = None) -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
+
+
+def cli(argv: list[str] | None = None) -> int:
+    """Entry point for the `passthru-scratchpad` command."""
+    import sys
+
+    argv = sys.argv[1:] if argv is None else argv
+    query = argv[0] if argv else ""
+    try:
+        token = resolve_token()
+        notes = list_notes(token, query)
+    except WisprError as exc:
+        print(f"passthru-scratchpad: {exc}", file=sys.stderr)
+        return 1
+
+    if not notes:
+        where = f" matching {query!r}" if query else ""
+        print(
+            f"passthru-scratchpad: Wispr reachable but Scratchpad has no notes{where}",
+            file=sys.stderr,
+        )
+        return 1
+
+    for note in notes:
+        title = note.get("title") or "(untitled)"
+        body = (note.get("content") or "").strip()
+        if not body and note.get("id"):
+            try:
+                body = (get_note(token, str(note["id"])).get("content") or "").strip()
+            except WisprError as exc:
+                print(
+                    f"passthru-scratchpad: could not read note {note['id']}: {exc}",
+                    file=sys.stderr,
+                )
+                return 1
+        print(f"# {title}\n{body}\n")
+    return 0
