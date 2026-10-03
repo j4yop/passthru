@@ -25,7 +25,7 @@ from pathlib import Path
 from typing import Any
 
 from .advice import advise, render_checked
-from .report import DEFAULT_LIMITATIONS, from_corpus, render
+from .report import DEFAULT_LIMITATIONS, from_corpus, load_audio, render
 
 DEFAULT_OUT = Path("reports/index.html")
 
@@ -100,6 +100,12 @@ def build_parser() -> argparse.ArgumentParser:
         help=f"where to write the HTML report (default: {DEFAULT_OUT})",
     )
     parser.add_argument(
+        "--audio-dir",
+        type=Path,
+        default=Path("docs/audio"),
+        help="folder of <run-id>.mp3 clips to embed (default: docs/audio)",
+    )
+    parser.add_argument(
         "--advice",
         action="store_true",
         help="also print the setting recommendation for each run",
@@ -117,7 +123,13 @@ def main(argv: list[str] | None = None) -> int:
         if not views:
             raise InputError(f"{args.corpus} produced no scorable runs")
         limitations = corpus.get("limitations") or DEFAULT_LIMITATIONS
-        html = render(views, limitations)
+        audio = load_audio(args.audio_dir, [v.run_id for v in views])
+        html = render(
+            views,
+            limitations,
+            spoken=corpus.get("spoken_ground_truth", ""),
+            audio=audio,
+        )
         written = write_atomic(args.out, html)
     except InputError as exc:
         print(f"passthru: {exc}", file=sys.stderr)

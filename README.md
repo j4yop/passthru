@@ -21,8 +21,16 @@ no longer contains the file it was supposed to create.
 
 **Read the report: [live demo →](https://j4yop.github.io/passthru/)** · [`reports/index.html`](reports/index.html)
 
-One self-contained HTML file. No assets, no JavaScript, no build step — it renders the same
-from that URL, from this repository, and from a local file path.
+One self-contained HTML file. No build step, nothing fetched: styles, scorer and all three
+audio clips are embedded, so it renders identically from that URL, from this repository, and
+from a local file path.
+
+On the page you can **play the actual voice** behind each run and then read what reached the
+agent, and **score your own dictation** by pasting what you said and what arrived. Nothing is
+uploaded; the scorer runs in the page.
+
+Every finding is also written out in static text, so the document reads correctly with
+JavaScript disabled — the scripting is an enhancement, not a dependency.
 
 ## Why this isn't a tokenizer toy
 

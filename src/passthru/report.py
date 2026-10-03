@@ -16,14 +16,19 @@ Design constraints, all of them deliberate:
 
 from __future__ import annotations
 
+import base64
 import html
+import json
 from dataclasses import dataclass, field
+from functools import lru_cache
 from pathlib import Path
 from typing import Any
 
 from .align import Pair, aggregate, align_utterances
 from .constraints import Requirement, extract, lost, mark_lost
 from .score import score_stage
+
+_MODULE_DIR = Path(__file__).resolve().parent
 
 TITLE = "Dictation is a compiler, and nobody type-checks the output"
 SUBTITLE = (
@@ -89,6 +94,39 @@ ul.lim li{margin:0 0 8px}
 padding:17px 19px;margin:14px 0 0;background:var(--card)}
 code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:13px;
 background:var(--chip);padding:1px 5px;border-radius:4px}
+
+/* interactive scorer: an enhancement only. Every finding above is already in the
+   static text, so the document reads correctly with scripting disabled. */
+.try{margin:14px 0 0}
+.panes{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin:14px 0}
+@media (max-width:720px){.panes{grid-template-columns:1fr}}
+.pane{background:var(--card);border:1px solid var(--line);border-radius:8px;
+padding:13px 15px}
+.pane label{display:block;font-size:11px;letter-spacing:.09em;text-transform:uppercase;
+color:var(--mut);font-weight:650;margin-bottom:7px}
+textarea{width:100%;min-height:132px;resize:vertical;padding:10px 11px;border-radius:6px;
+border:1px solid var(--line);background:var(--bg);color:var(--fg);font:14px/1.55
+ui-monospace,SFMono-Regular,Menlo,monospace}
+textarea:focus{outline:2px solid var(--mut);outline-offset:1px}
+.btnrow{display:flex;flex-wrap:wrap;gap:8px;margin:4px 0 0}
+button{font:inherit;font-size:13.5px;font-weight:600;padding:7px 13px;border-radius:6px;
+border:1px solid var(--line);background:var(--card);color:var(--fg);cursor:pointer}
+button:hover{border-color:var(--mut)}
+button.primary{background:var(--fg);color:var(--bg);border-color:var(--fg)}
+.hint{color:var(--mut);font-size:13.5px;margin:0}
+.scorehead{display:flex;justify-content:space-between;align-items:baseline;
+gap:14px;flex-wrap:wrap;margin:18px 0 8px}
+.big{font-size:34px;font-weight:700;letter-spacing:-.025em;font-variant-numeric:tabular-nums}
+.small{color:var(--mut);font-size:13.5px}
+.ok{color:var(--kept)}
+ul.reqs{margin:10px 0 0;padding-left:0;list-style:none}
+ul.reqs li{margin:0 0 7px;font-size:14px}
+audio{width:100%;margin:10px 0 0;height:34px}
+.caption{font-size:12.5px;color:var(--mut);margin:6px 0 0}
+.noweb{display:none}
+.noscript{border:1px solid var(--warn);border-left-width:3px;border-radius:8px;
+padding:14px 16px;margin:14px 0 0;font-size:14px;background:var(--card)}
+@media (scripting:none){.noweb{display:block}.withjs{display:none}}
 """
 
 _KIND_LABEL = {
@@ -146,6 +184,36 @@ def from_corpus(corpus: dict[str, Any]) -> list[RunView]:
     return views
 
 
+@lru_cache(maxsize=1)
+def _browser_js() -> str:
+    """The in-browser scorer, inlined so the file stays standalone."""
+    return (_MODULE_DIR / "browser.js").read_text(encoding="utf-8")
+
+
+def load_audio(audio_dir: Path, run_ids: list[str]) -> dict[str, str]:
+    """Return `{run_id: data-uri}` for each clip found, base64 so nothing is fetched.
+
+    Embedding keeps the single-file guarantee intact: the report still opens from a USB
+    stick with no network, which is the reason the file has no external assets.
+    """
+    out: dict[str, str] = {}
+    for run_id in run_ids:
+        clip = audio_dir / f"{run_id}.mp3"
+        if clip.exists():
+            encoded = base64.b64encode(clip.read_bytes()).decode("ascii")
+            out[run_id] = f"data:audio/mpeg;base64,{encoded}"
+    return out
+
+
+def _audio_player(run_id: str, audio: dict[str, str]) -> str:
+    source = audio.get(run_id)
+    if not source:
+        return ""
+    return f"""      <p class="caption">The voice behind this run. Play it, then read what
+      arrived below.</p>
+      <audio controls preload="none" src="{source}"></audio>"""
+
+
 def _e(value: Any) -> str:
     return html.escape(str(value), quote=True)
 
@@ -200,9 +268,60 @@ def _requirements(view: RunView) -> str:
     return "\n".join(items)
 
 
-def render(views: list[RunView], limitations: list[str] | None = None) -> str:
+def _samples_script(views: list[RunView], spoken: str) -> str:
+    payload = {
+        v.run_id: {"said": spoken, "got": _received_text(v)} for v in views
+    }
+    return (
+        "const SAMPLES = "
+        + json.dumps(payload, ensure_ascii=False)
+        + ";\n"
+    )
+
+
+def _received_text(view: RunView) -> str:
+    return "\n".join(p.received for p in view.pairs if p.received).strip()
+
+
+def _try_it_section(views: list[RunView], spoken: str) -> str:
+    buttons = "".join(
+        f'<button data-sample="{_e(v.run_id)}">Try {_e(v.auto_cleanup)}</button>'
+        for v in views
+    )
+    return f"""<h2 id="try">Measure your own dictation</h2>
+<p class="note">This is the same scorer the package uses, running here in the page.
+Paste or dictate what you <em>said</em> on the left and what the agent <em>received</em> on
+the right, and it reports what never made it across. Nothing is uploaded.</p>
+<div class="btnrow">{buttons}<button id="clear">Clear</button></div>
+<div class="noscript noscript">
+  Scoring in the page needs JavaScript. Every finding on this page is already written out
+  above and below, so it reads without it.
+</div>
+<div class="try">
+  <div class="panes">
+    <div class="pane">
+      <label for="said">What you said</label>
+      <textarea id="said" spellcheck="false"
+        placeholder="Keep it under 200 lines and name the file score.py.">{_e(spoken)}</textarea>
+    </div>
+    <div class="pane">
+      <label for="got">What the agent received</label>
+      <textarea id="got" spellcheck="false"
+        placeholder="Keep it under 200 lines."></textarea>
+    </div>
+  </div>
+  <div id="out"></div>
+  <p class="caption">Token survival here is identical to the Python package. Requirement
+  detection in the page is a deliberately coarser port and can under-report; the package is
+  the reference implementation, and it never over-reports a requirement as lost.</p>
+</div>"""
+
+
+def render(views: list[RunView], limitations: list[str] | None = None,
+           spoken: str = "", audio: dict[str, str] | None = None) -> str:
     """Return a complete, standalone HTML document."""
     limitations = limitations or []
+    audio = audio or {}
     default_view = next((v for v in views if v.is_default), None)
 
     headline = ""
@@ -228,6 +347,7 @@ def render(views: list[RunView], limitations: list[str] | None = None) -> str:
 {_utterance_table(view)}
         </tbody>
       </table>
+{_audio_player(view.run_id, audio)}
       <h3>Requirements lost, most severe first</h3>
       <ul style="padding-left:0;list-style:none;margin:10px 0 0">
 {_requirements(view)}
@@ -257,6 +377,8 @@ def render(views: list[RunView], limitations: list[str] | None = None) -> str:
 {chr(10).join(_bar(v) for v in views)}
 </div>{headline}
 
+{_try_it_section(views, spoken)}
+
 <h2>Per utterance</h2>
 <p class="note">Each row is one sentence of speech and whatever reached the agent. The
 default setting is expanded.</p>
@@ -269,7 +391,11 @@ default setting is expanded.</p>
   </ul>
 </div>
 
-</div></body>
+</div>
+<script>
+{_samples_script(views, spoken)}{_browser_js()}
+</script>
+</body>
 </html>
 """
 
