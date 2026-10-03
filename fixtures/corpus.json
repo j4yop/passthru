@@ -104,6 +104,13 @@
           "label": "u2 css/layout",
           "received": "Style the side bar so the panel is 240px wide and never let it collapse on mobile because that breaks the whole layout. Use flexbox not grid. The gap between items should be 1rem and the border radius is 8px. Actually don't border with the dark mode variant yet. That's a separate ticket and utterance",
           "note_id": "14e18694-016b-4b08-95b2-7e7ac455e2fa"
+        },
+        {
+          "id": "u2",
+          "auto_cleanup": "None",
+          "label": "u2 css/layout",
+          "received": "Style the side bar so the panel is 240 pixels wide and never let it collapse on mobile because that breaks the whole layout. Use flexbox not grid. The gap between items should be one rem and the border radius is eight pixels. Oh and actually don't bother with the dark mode variant yet. That's a separate ticket and utterance",
+          "note_id": "eb671c89-80aa-4dd2-aac7-4c1edd1ab3cd"
         }
       ]
     }
