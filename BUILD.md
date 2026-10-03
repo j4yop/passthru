@@ -72,7 +72,7 @@ trusting the pipeline.
 ## Bugs the corpus caught
 
 Five defects surfaced because each dictated module was verified against real captured
-speech, not because a test suite existed:
+speech:
 
 1. **Trailing punctuation fused to tokens.** `score.py.` did not equal `score.py`, so the
    tool's own central case, a surviving filename, was reported as lost. Appeared twice,
@@ -89,6 +89,28 @@ speech, not because a test suite existed:
 
 Fixes 1, 3, and 4 changed measured numbers. They are stated in the commit messages rather
 than quietly absorbed.
+
+## Bugs the test suite caught, after the fact
+
+`tests/test_passthru.py` was added at the end, and immediately found three defects that had
+already shipped. The corpus checks had missed all three:
+
+6. **Prohibition detection had silently stopped working.** An earlier fix expanded `don't`
+   to `don t`, which matched neither the `do not` nor the `don't` branch of the pattern, so
+   no prohibition was found again. The corpus acceptance check did not notice because it only
+   asserted on the filename and the number. Contractions now expand to `do not`, `cannot`,
+   `will not`.
+7. **Token spans were offset forward** by the length of the stripped tail, so slicing by
+   span returned `hing.` for the token `thing.`. Alignment then re-scored the fragment and
+   disagreed with its own alignment, drifting 12.5 points below the whole-document score on
+   short repeated vocabulary.
+8. **Stripping both ends of a token** turned the dotfile `.env` into `env`. Only the tail is
+   stripped now.
+
+Defect 6 is the one worth remembering: it was introduced by an attempted fix, survived a
+verification pass, and was only caught because each test pins a defect that actually
+occurred. The corpus checks what the numbers say. The tests check that the machinery is
+still saying them correctly.
 
 ## What is not claimed
 

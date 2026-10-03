@@ -19,7 +19,10 @@ mid-sentence retraction never reach the agent. **Nothing errors.** The prompt si
 arrives with its specifications missing, and the agent builds something from a spec that
 no longer contains the file it was supposed to create.
 
-Read the report: [`reports/index.html`](reports/index.html)
+**Read the report: [live demo →](https://j4yop.github.io/passthru/)** · [`reports/index.html`](reports/index.html)
+
+One self-contained HTML file. No assets, no JavaScript, no build step — it renders the same
+from that URL, from this repository, and from a local file path.
 
 ## Why this isn't a tokenizer toy
 
