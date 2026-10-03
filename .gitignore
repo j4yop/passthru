@@ -23,7 +23,8 @@ coverage/
 *.map
 
 # Passthru output
-reports/*.html
+# The rendered report is evidence, so it is committed.
+# Reports are reproducible from the corpus with one command.
 captures/
 *.wav
 *.m4a

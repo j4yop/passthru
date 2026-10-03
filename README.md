@@ -1,37 +1,111 @@
-# PASSTHRU
+# Passthru
 
 **Dictation is a compiler, and nobody type-checks the output.**
 
-Passthru measures how much of what you *said* survives the trip into your coding agent.
+Passthru measures how much of what you *said* survives the trip into your coding agent,
+and which requirements died on the way.
 
-## The problem
+The headline finding, from three controlled captures of the same paragraph spoken into
+Wispr Flow at different cleanup settings:
 
-You dictate a prompt. Wispr Flow transcribes it, applies cleanup and formatting, and pastes it
-into the agent. The agent writes code from what it received. Nothing errors. The code is just
-not quite what you asked for, and by the time you notice, four files are already wrong.
+| Auto Cleanup | Token survival | Requirements lost |
+|---|---|---|
+| **None** | **96.9%** | 0 of 10 |
+| **Light** (product default) | **61.5%** | 3 of 10 |
+| **Medium** | **58.5%** | 4 of 10 |
 
-Nobody has measured that gap. This does.
+At the setting Wispr Flow ships as the default, the filename, the numeric limit, and the
+mid-sentence retraction never reach the agent. **Nothing errors.** The prompt simply
+arrives with its specifications missing, and the agent builds something from a spec that
+no longer contains the file it was supposed to create.
+
+Read the report: [`reports/index.html`](reports/index.html)
+
+## Why this isn't a tokenizer toy
+
+Token survival on its own is trivia. What makes it matter is *which* tokens die. Across
+the three runs the casualties are identical and they are never filler words:
+
+| Requirement | Medium | Light |
+|---|---|---|
+| `score.py` — the target filename | lost | lost |
+| `under 200 lines` — a numeric constraint | lost | lost |
+| `actually, scratch that` — a mid-sentence retraction | lost | lost |
+| `Levenshtein` | misspelled | survived |
+
+Prose survives untouched. Specifications do not. Dictation cleanup is not degrading the
+message, it is deleting the parts that make code correct.
+
+And the corruption is not always loud. Building this tool by voice, the module name
+`constraints.py` arrived as `constants.py`, and `passthru` arrived three different ways in
+six steps: `pass through`, `pass_through`, and `passthrough`. Each is a plausible directory
+name. **Dictation does not only drop your constraints. It substitutes ones that look
+right.**
 
 ## How it works
 
-1. Capture the microphone while you dictate.
-2. Transcribe the audio locally (MLX Whisper, MIT, on-device). This is *what you said*.
-3. Read what the agent actually received, from the screen (macOS Vision OCR). This is *what the agent got*.
-4. Align the two and compute token survival.
-5. Report the constraints that died, and the one dictation setting that recovers them.
+Three surfaces between your mouth and the agent's context:
 
-Nothing leaves the machine. No API keys, no network at runtime, no login.
+| | Surface | Read via | Loss here means |
+|---|---|---|---|
+| **A** | the audio you spoke | MLX Whisper, local | speech recognition error |
+| **B** | the text Wispr delivered | Scratchpad, via MCP | dictation cleanup |
+| **C** | the text the agent received | screen OCR | paste loss or manual edits |
+
+Scoring A→B and B→C separately is the point. One A→C number tells you something broke.
+Three tell you **which stage** broke.
+
+Wispr Flow's MCP server exposes meetings, calendar, and Scratchpad, and **no dictation
+history**, by design. That is why surface A must be captured from the microphone. Treat it
+as a finding rather than a gap: the absence is an intentional privacy boundary, and it is
+also the reason the tool has to exist.
+
+## Use it
+
+```bash
+pip install -e .
+
+passthru fixtures/corpus.json                    # writes reports/index.html
+passthru fixtures/corpus.json --advice            # plus the setting recommendation
+passthru fixtures/corpus.json --out /tmp/r.html   # anywhere you like
+```
+
+The report is a single self-contained HTML file. No assets, no JavaScript, legible in dark
+and light. It opens from a USB stick on a machine with no network.
+
+To capture a new corpus:
+
+```bash
+passthru-scratchpad     # or: python -m passthru.scratchpad
+ffmpeg -f avfoundation -i ":2" -ar 16000 -ac 1 captures/run.wav
+```
 
 ## What it does not claim
 
-It reports **token survival**, not accuracy. The distinction matters: the published research on
-voice-to-agent prompting measures the accuracy cost of transcription under synthetic perturbations,
-not in a real agentic loop where the agent re-reads the files on disk. This tool measures the
-directly observable thing, and does not extrapolate to output quality.
+- **It measures tokens, not accuracy.** The published research on voice prompting measures
+  accuracy under synthetic perturbations of already-written prompts. This tool measures
+  token survival on real dictated speech. Those are different quantities and the code never
+  conflates them: `advice.render_checked()` raises if any generated sentence contains
+  "accuracy", "correctness", or "better output".
+- **n = 1 per setting.** One utterance, one speaker, one session. This shows the effect is
+  real and large. It is not a benchmark and the percentages should not be quoted as one.
+- **Reading pace was not matched across runs.** The most likely confound, uncontrolled.
+- **It cannot see inside Wispr Flow.** It compares two observable surfaces. What Flow did
+  internally is inferred from the difference between them, not observed.
 
-Honest ceiling: **you cannot measure the audio you did not capture**, and this tool cannot see
-what Wispr Flow did internally. It compares two observable surfaces.
+All four are printed on the report itself. A measurement tool that hides its own weaknesses
+is the failure mode this project criticises.
 
-## Status
+## Evidence
 
-Built by voice. See `SPEC.md` for the build contract.
+[`fixtures/CORPUS.md`](fixtures/CORPUS.md) documents the capture method, the reproduction
+procedure, and every limitation. Audio is not published, because it contains a voice.
+
+## Built by voice
+
+Every module in `src/passthru/` was written from spoken instructions with Wispr Flow dictation
+into a coding agent, with Auto Cleanup set to None — the tool's own recommendation, applied
+to its own construction. See [`BUILD.md`](BUILD.md) for exactly what was dictated and what
+was scaffolding, and for the corruption log.
+
+MIT licensed.

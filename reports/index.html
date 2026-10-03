@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Dictation is a compiler, and nobody type-checks the output</title>
+<style>
+:root{--bg:#fbfbfa;--fg:#1a1a19;--mut:#61615c;--line:#e4e4e0;--card:#fff;
+--gone:#b42318;--kept:#0a7c5a;--warn:#b45309;--chip:#f1f1ee}
+@media (prefers-color-scheme: dark){:root{--bg:#131313;--fg:#ededea;--mut:#9b9b94;
+--line:#2c2c2a;--card:#1a1a19;--gone:#ff8a80;--kept:#5fd3a8;--warn:#f0b429;
+--chip:#232322}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.6 -apple-system,
+BlinkMacSystemFont,"Segoe UI",Inter,sans-serif;-webkit-font-smoothing:antialiased}
+.wrap{max-width:920px;margin:0 auto;padding:48px 22px 80px}
+h1{font-size:31px;line-height:1.16;letter-spacing:-.022em;margin:0 0 8px;font-weight:680}
+.sub{color:var(--mut);font-size:15px;margin:0 0 34px}
+h2{font-size:19px;letter-spacing:-.01em;margin:40px 0 12px;font-weight:650;
+padding-bottom:7px;border-bottom:1px solid var(--line)}
+h3{font-size:15.5px;margin:0;font-weight:650}
+.kicker{font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--mut);
+font-weight:650;margin-bottom:9px}
+.bars{background:var(--card);border:1px solid var(--line);border-radius:9px;padding:20px 22px}
+.bar{margin:0 0 17px}
+.bar:last-child{margin-bottom:0}
+.bar .top{display:flex;justify-content:space-between;align-items:baseline;gap:12px;
+margin-bottom:6px}
+.bar .name{font-weight:600;font-size:15px}
+.bar .name small{font-weight:400;color:var(--mut)}
+.bar .pct{font-variant-numeric:tabular-nums;font-weight:680;font-size:17px}
+.track{height:9px;background:var(--chip);border-radius:5px;overflow:hidden}
+.fill{display:block;height:100%;border-radius:5px;background:var(--kept)}
+.fill.warn{background:var(--warn)} .fill.bad{background:var(--gone)}
+.note{color:var(--mut);font-size:14px;margin:14px 0 0}
+details{background:var(--card);border:1px solid var(--line);border-radius:8px;
+margin:0 0 9px;overflow:hidden}
+summary{padding:13px 17px;cursor:pointer;font-weight:620;font-size:15px;list-style:none}
+summary::-webkit-details-marker{display:none}
+summary::before{content:"+ ";color:var(--mut);font-weight:400}
+details[open] summary::before{content:"− "}
+summary:hover{background:var(--chip)}
+.bd{padding:0 17px 16px;border-top:1px solid var(--line);font-size:14.5px}
+table{width:100%;border-collapse:collapse;margin:12px 0 0;font-size:14px}
+th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--line);
+vertical-align:top}
+th{font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--mut)}
+td.said,td.got{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12.5px;
+line-height:1.5}
+td.num{font-variant-numeric:tabular-nums;white-space:nowrap;text-align:right}
+.dead{color:var(--gone);font-family:ui-monospace,SFMono-Regular,Menlo,monospace;
+font-size:12.5px}
+.tok{display:inline-block;padding:1px 6px;margin:1px 3px 1px 0;border-radius:4px;
+background:var(--chip);font-family:ui-monospace,Menlo,monospace;font-size:12px}
+.tok.gone{background:color-mix(in srgb,var(--gone) 15%,transparent);color:var(--gone);
+text-decoration:line-through}
+.sev{display:inline-block;min-width:20px;padding:1px 6px;border-radius:4px;
+background:var(--chip);font-size:11px;font-weight:700;text-align:center}
+ul.lim{margin:0;padding-left:20px}
+ul.lim li{margin:0 0 8px}
+.warnbox{border:1px solid var(--warn);border-left-width:3px;border-radius:8px;
+padding:17px 19px;margin:14px 0 0;background:var(--card)}
+code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:13px;
+background:var(--chip);padding:1px 5px;border-radius:4px}
+</style>
+</head>
+<body><div class="wrap">
+
+<div class="kicker">Passthru &mdash; voice-to-agent fidelity</div>
+<h1>Dictation is a compiler, and nobody type-checks the output</h1>
+<p class="sub">Token survival from speech into a coding agent, across Wispr Flow&#x27;s dictation cleanup settings.</p>
+
+<h2>Token survival by dictation setting</h2>
+<div class="bars">
+      <div class="bar">
+        <div class="top">
+          <span class="name">Auto Cleanup None</span>
+          <span class="pct">96.9%</span>
+        </div>
+        <div class="track"><span class="fill " style="width:96.9%"></span></div>
+      </div>
+      <div class="bar">
+        <div class="top">
+          <span class="name">Auto Cleanup Light <small>product default</small></span>
+          <span class="pct">61.5%</span>
+        </div>
+        <div class="track"><span class="fill warn" style="width:61.5%"></span></div>
+      </div>
+      <div class="bar">
+        <div class="top">
+          <span class="name">Auto Cleanup Medium</span>
+          <span class="pct">58.5%</span>
+        </div>
+        <div class="track"><span class="fill bad" style="width:58.5%"></span></div>
+      </div>
+</div>
+    <p class="note">At the setting Wispr Flow ships as the default, the requirements
+    below never reach the agent: <code>score.py</code>, <code>score.py</code>, <code>200</code>. Nothing errors. The prompt simply arrives
+    with its specifications missing.</p>
+
+<h2>Per utterance</h2>
+<p class="note">Each row is one sentence of speech and whatever reached the agent. The
+default setting is expanded.</p>
+  <details>
+    <summary>Auto Cleanup None &mdash; 96.9% of
+    tokens survived</summary>
+    <div class="bd">
+      <table>
+        <thead><tr><th>#</th><th>Said</th><th>Arrived</th><th>Lost</th><th></th></tr></thead>
+        <tbody>
+      <tr>
+        <td class="num">0</td>
+        <td class="said">Build a passthru module that scores token survival.</td>
+        <td class="got">Build a pass-through module that scores token survival.</td>
+        <td><span class="tok gone">passthru</span></td>
+        <td class="num">88%</td>
+      </tr>
+      <tr>
+        <td class="num">1</td>
+        <td class="said">Don&#x27;t touch the alignment code yet.</td>
+        <td class="got">Don&#x27;t touch the alignment code yet.</td>
+        <td><span style="color:var(--kept)">nothing lost</span></td>
+        <td class="num">100%</td>
+      </tr>
+      <tr>
+        <td class="num">2</td>
+        <td class="said">Use difflib, not Levenshtein.</td>
+        <td class="got">Use difflib, not levenshtein.</td>
+        <td><span style="color:var(--kept)">nothing lost</span></td>
+        <td class="num">100%</td>
+      </tr>
+      <tr>
+        <td class="num">3</td>
+        <td class="said">The threshold is 400, not 300.</td>
+        <td class="got">The threshold is 400, not 300.</td>
+        <td><span style="color:var(--kept)">nothing lost</span></td>
+        <td class="num">100%</td>
+      </tr>
+      <tr>
+        <td class="num">4</td>
+        <td class="said">Keep it under 200 lines and make sure it runs fully offline, so no network calls anywhere in the scoring path.</td>
+        <td class="got">Keep it under 200 lines and make sure it runs fully offline, so no network calls anywhere in the scoring path.</td>
+        <td><span style="color:var(--kept)">nothing lost</span></td>
+        <td class="num">100%</td>
+      </tr>
+      <tr>
+        <td class="num">5</td>
+        <td class="said">Oh and actually scratch the line limit.</td>
+        <td class="got">Oh, and actually scratch the line limit.</td>
+        <td><span style="color:var(--kept)">nothing lost</span></td>
+        <td class="num">100%</td>
+      </tr>
+      <tr>
+        <td class="num">6</td>
+        <td class="said">That was for a different module.</td>
+        <td class="got">That was for The different module.</td>
+        <td><span class="tok gone">a</span></td>
+        <td class="num">83%</td>
+      </tr>
+      <tr>
+        <td class="num">7</td>
+        <td class="said">Keep the file name as score.py.</td>
+        <td class="got">Keep the file name as score.py.</td>
+        <td><span style="color:var(--kept)">nothing lost</span></td>
+        <td class="num">100%</td>
+      </tr>
+        </tbody>
+      </table>
+      <h3>Requirements lost, most severe first</h3>
+      <ul style="padding-left:0;list-style:none;margin:10px 0 0">
+<p class="note">No requirements lost at this setting.</p>
+      </ul>
+    </div>
+  </details>
+  <details open>
+    <summary>Auto Cleanup Light &mdash; 61.5% of
+    tokens survived, product default</summary>
+    <div class="bd">
+      <table>
+        <thead><tr><th>#</th><th>Said</th><th>Arrived</th><th>Lost</th><th></th></tr></thead>
+        <tbody>
+      <tr>
+        <td class="num">0</td>
+        <td class="said">Build a passthru module that scores token survival.</td>
+        <td class="got">Build a pass-through module that scores token survival.</td>
+        <td><span class="tok gone">passthru</span></td>
+        <td class="num">88%</td>
+      </tr>
+      <tr>
+        <td class="num">1</td>
+        <td class="said">Don&#x27;t touch the alignment code yet.</td>
+        <td class="got">Don&#x27;t touch the alignment code yet.</td>
+        <td><span style="color:var(--kept)">nothing lost</span></td>
+        <td class="num">100%</td>
+      </tr>
+      <tr>
+        <td class="num">2</td>
+        <td class="said">Use difflib, not Levenshtein.</td>
+        <td class="got">Use difflib not Levenshtein.</td>
+        <td><span style="color:var(--kept)">nothing lost</span></td>
+        <td class="num">100%</td>
+      </tr>
+      <tr>
+        <td class="num">3</td>
+        <td class="said">The threshold is 400, not 300.</td>
+        <td class="got">The threshold is 400 not 300.</td>
+        <td><span style="color:var(--kept)">nothing lost</span></td>
+        <td class="num">100%</td>
+      </tr>
+      <tr>
+        <td class="num">4</td>
+        <td class="said">Keep it under 200 lines and make sure it runs fully offline, so no network calls anywhere in the scoring path.</td>
+        <td class="got">Make sure it runs fully offline so no network calls anywhere in the scoring path</td>
+        <td><span class="tok gone">keep</span> <span class="tok gone">it</span> <span class="tok gone">under</span> <span class="tok gone">200</span> <span class="tok gone">lines</span> <span class="tok gone">and</span></td>
+        <td class="num">71%</td>
+      </tr>
+      <tr>
+        <td class="num">5</td>
+        <td class="said">Oh and actually scratch the line limit.</td>
+        <td class="got">and</td>
+        <td><span class="tok gone">oh</span> <span class="tok gone">actually</span> <span class="tok gone">scratch</span> <span class="tok gone">the</span> <span class="tok gone">line</span> <span class="tok gone">limit</span></td>
+        <td class="num">14%</td>
+      </tr>
+      <tr>
+        <td class="num">6</td>
+        <td class="said">That was for a different module.</td>
+        <td class="got"><span class="dead">nothing arrived</span></td>
+        <td><span class="dead">entire utterance lost</span></td>
+        <td class="num">0%</td>
+      </tr>
+      <tr>
+        <td class="num">7</td>
+        <td class="said">Keep the file name as score.py.</td>
+        <td class="got"><span class="dead">nothing arrived</span></td>
+        <td><span class="dead">entire utterance lost</span></td>
+        <td class="num">0%</td>
+      </tr>
+        </tbody>
+      </table>
+      <h3>Requirements lost, most severe first</h3>
+      <ul style="padding-left:0;list-style:none;margin:10px 0 0">
+      <li><span class="sev">4</span>
+        <strong>keep</strong>
+        &mdash; <code>score.py</code>
+        <div class="note">keep score.py</div></li>
+      <li><span class="sev">2</span>
+        <strong>filename</strong>
+        &mdash; <code>score.py</code>
+        <div class="note">score.py</div></li>
+      <li><span class="sev">2</span>
+        <strong>number</strong>
+        &mdash; <code>200</code>
+        <div class="note">200</div></li>
+      </ul>
+    </div>
+  </details>
+  <details>
+    <summary>Auto Cleanup Medium &mdash; 58.5% of
+    tokens survived</summary>
+    <div class="bd">
+      <table>
+        <thead><tr><th>#</th><th>Said</th><th>Arrived</th><th>Lost</th><th></th></tr></thead>
+        <tbody>
+      <tr>
+        <td class="num">0</td>
+        <td class="said">Build a passthru module that scores token survival.</td>
+        <td class="got">Build a pass-through module that scores token survival.</td>
+        <td><span class="tok gone">passthru</span></td>
+        <td class="num">88%</td>
+      </tr>
+      <tr>
+        <td class="num">1</td>
+        <td class="said">Don&#x27;t touch the alignment code yet.</td>
+        <td class="got">Don&#x27;t touch the alignment code yet.</td>
+        <td><span style="color:var(--kept)">nothing lost</span></td>
+        <td class="num">100%</td>
+      </tr>
+      <tr>
+        <td class="num">2</td>
+        <td class="said">Use difflib, not Levenshtein.</td>
+        <td class="got">Use `difflib`, not</td>
+        <td><span class="tok gone">levenshtein</span></td>
+        <td class="num">75%</td>
+      </tr>
+      <tr>
+        <td class="num">3</td>
+        <td class="said">The threshold is 400, not 300.</td>
+        <td class="got">The threshold is 400, not 300.</td>
+        <td><span style="color:var(--kept)">nothing lost</span></td>
+        <td class="num">100%</td>
+      </tr>
+      <tr>
+        <td class="num">4</td>
+        <td class="said">Keep it under 200 lines and make sure it runs fully offline, so no network calls anywhere in the scoring path.</td>
+        <td class="got">Make sure it runs fully offline, so no network calls anywhere in the scoring path</td>
+        <td><span class="tok gone">keep</span> <span class="tok gone">it</span> <span class="tok gone">under</span> <span class="tok gone">200</span> <span class="tok gone">lines</span> <span class="tok gone">and</span></td>
+        <td class="num">71%</td>
+      </tr>
+      <tr>
+        <td class="num">5</td>
+        <td class="said">Oh and actually scratch the line limit.</td>
+        <td class="got"><span class="dead">nothing arrived</span></td>
+        <td><span class="dead">entire utterance lost</span></td>
+        <td class="num">0%</td>
+      </tr>
+      <tr>
+        <td class="num">6</td>
+        <td class="said">That was for a different module.</td>
+        <td class="got"><span class="dead">nothing arrived</span></td>
+        <td><span class="dead">entire utterance lost</span></td>
+        <td class="num">0%</td>
+      </tr>
+      <tr>
+        <td class="num">7</td>
+        <td class="said">Keep the file name as score.py.</td>
+        <td class="got"><span class="dead">nothing arrived</span></td>
+        <td><span class="dead">entire utterance lost</span></td>
+        <td class="num">0%</td>
+      </tr>
+        </tbody>
+      </table>
+      <h3>Requirements lost, most severe first</h3>
+      <ul style="padding-left:0;list-style:none;margin:10px 0 0">
+      <li><span class="sev">4</span>
+        <strong>keep</strong>
+        &mdash; <code>score.py</code>
+        <div class="note">keep score.py</div></li>
+      <li><span class="sev">3</span>
+        <strong>choice</strong>
+        &mdash; <code>levenshtein</code>
+        <div class="note">use difflib not levenshtein</div></li>
+      <li><span class="sev">2</span>
+        <strong>filename</strong>
+        &mdash; <code>score.py</code>
+        <div class="note">score.py</div></li>
+      <li><span class="sev">2</span>
+        <strong>number</strong>
+        &mdash; <code>200</code>
+        <div class="note">200</div></li>
+      </ul>
+    </div>
+  </details>
+
+<h2>What this evidence cannot tell you</h2>
+<div class="warnbox">
+  <ul class="lim">
+<li>One utterance per setting. This shows the effect is real and large; it is not a benchmark, and the percentages should not be quoted as one.</li><li>Reading pace was not matched across runs, so emphasis could have influenced which constraints survived. This is the most likely confound and it is uncontrolled.</li><li>The spoken side is the known script. A separate local ASR engine read the same audio and disagreed with Wispr in both directions, which is itself the reason this has to be measured rather than reasoned about.</li><li>Audio is not published with this report, because it contains a voice.</li>
+  </ul>
+</div>
+
+</div></body>
+</html>
