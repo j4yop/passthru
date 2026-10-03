@@ -76,6 +76,13 @@
           "label": "u1 test/tokenizer",
           "received": "Add a test file called test\\_score.py that tests the tokenizer and make sure it covers the trailing period case. So score.py followed by a full stop must not be treated as a different token. Only use the standard library, no pytest, because we want it to run without installing anything. The threshold should be 0.7. not zero point five. It has to run a Python three point ten. Since we still support that. Oh wait, actually scratch the three point ten part. That's for other repo.",
           "note_id": "6a224d4e-341a-4843-a50f-2acfe3321801"
+        },
+        {
+          "id": "u1",
+          "auto_cleanup": "Light",
+          "label": "u1 test/tokenizer",
+          "received": "Add a test file called test\\_score.py that tests the tokenizer and make sure it covers the trailing period case. score.py followed by a full stop must not be treated as a different token. Only use the standard library, not pytest, because we want it to run without installing anything. The threshold should be 0.7 not 0.5",
+          "note_id": "63f22616-4e2e-46c2-9c72-ffa48ca95664"
         }
       ]
     }
