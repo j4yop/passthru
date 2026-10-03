@@ -181,6 +181,13 @@
           "label": "u4 config/deploy",
           "received": "Set the timeout to 30 seconds in the deploy config and never commit the staging credentials because that would leak them. Use the environment variable, not a literal. The retry count is three, and keep the backoff exponential rather than fixed and utterance",
           "note_id": "48751c6b-f147-454a-a0d8-b6a86c12670d"
+        },
+        {
+          "id": "u4",
+          "auto_cleanup": "Medium",
+          "label": "u4 config/deploy",
+          "received": "Set the timeout to 30 seconds in the deploy config, and never commit the staging credentials because that would leak them. Use the environment variable, not a literal. The retry count is 3, and keep the backoff exponential rather than fixed. And utterance",
+          "note_id": "eef333d7-9ceb-4f0b-b894-443f9fe7c76f"
         }
       ]
     }
