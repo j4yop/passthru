@@ -3,23 +3,24 @@
   "created": "2026-10-02",
   "surface_a_note": "Surface A (what was spoken) is reconstructed from the audio by a LOCAL ASR engine that is NOT Wispr Flow's. See CORPUS.md for what that means for interpretation.",
   "expected": {
+    "note": "Survival is token survival, not accuracy, and it is measured against a script rather than a transcript. These ranges exist to catch a regression in the pipeline, not to certify a benchmark. No requirement is declared must_keep, because nothing in this corpus survived at every setting and claiming otherwise would be a promise the evidence does not support.",
     "none": {
       "survival_range": [
-        0.85,
+        0.9,
         1.0
       ],
       "must_keep": []
     },
     "light": {
       "survival_range": [
-        0.5,
+        0.6,
         1.0
       ],
       "must_keep": []
     },
     "medium": {
       "survival_range": [
-        0.5,
+        0.55,
         1.0
       ],
       "must_keep": []
@@ -57,7 +58,7 @@
           "id": "u1",
           "auto_cleanup": "Medium",
           "label": "u1 test/tokenizer",
-          "received": "Add a test file called test\\_score.py that tests the tokenizer and make sure it covers the trailing period case. score.py. must not be treated as a different token. Only use the standard library, not pytest, because we want it to run without installing anything. The threshold should be 0.7, not 0.5 and utterance",
+          "received": "Add a test file called test\\_score.py that tests the tokenizer and make sure it covers the trailing period case. score.py. must not be treated as a different token. Only use the standard library, not pytest, because we want it to run without installing anything. The threshold should be 0.7, not 0.5",
           "note_id": "70d11e53-a0ab-4428-b41e-9ca0099a1c07"
         }
       ]
@@ -71,21 +72,21 @@
           "id": "u2",
           "auto_cleanup": "Light",
           "label": "u2 css/layout",
-          "received": "Style the side bar so the panel is 240px wide and never let it collapse on mobile because that breaks the whole layout. Use flexbox not grid. The gap between items should be 1rem and the border radius is 8px. Actually don't border with the dark mode variant yet. That's a separate ticket and utterance",
+          "received": "Style the side bar so the panel is 240px wide and never let it collapse on mobile because that breaks the whole layout. Use flexbox not grid. The gap between items should be 1rem and the border radius is 8px. Actually don't border with the dark mode variant yet. That's a separate ticket",
           "note_id": "14e18694-016b-4b08-95b2-7e7ac455e2fa"
         },
         {
           "id": "u2",
           "auto_cleanup": "None",
           "label": "u2 css/layout",
-          "received": "Style the side bar so the panel is 240 pixels wide and never let it collapse on mobile because that breaks the whole layout. Use flexbox not grid. The gap between items should be one rem and the border radius is eight pixels. Oh and actually don't bother with the dark mode variant yet. That's a separate ticket and utterance",
+          "received": "Style the side bar so the panel is 240 pixels wide and never let it collapse on mobile because that breaks the whole layout. Use flexbox not grid. The gap between items should be one rem and the border radius is eight pixels. Oh and actually don't bother with the dark mode variant yet. That's a separate ticket",
           "note_id": "eb671c89-80aa-4dd2-aac7-4c1edd1ab3cd"
         },
         {
           "id": "u2",
           "auto_cleanup": "Medium",
           "label": "u2 css/layout",
-          "received": "Style the sidebar so the panel is 240px wide and never let it collapse on mobile because that breaks the whole layout. Use flexbox, not grid. The gap between items should be 1rem, and the border radius is 8px. Don't bother with the dark mode variant yet. That's a separate ticket. And utterance",
+          "received": "Style the sidebar so the panel is 240px wide and never let it collapse on mobile because that breaks the whole layout. Use flexbox, not grid. The gap between items should be 1rem, and the border radius is 8px. Don't bother with the dark mode variant yet. That's a separate ticket.",
           "note_id": "5bb92e69-a6f4-4c54-849f-e171a755829c"
         }
       ]
@@ -99,14 +100,14 @@
           "id": "u3",
           "auto_cleanup": "Light",
           "label": "u3 sql/index",
-          "received": "Add an index on the orders table and never drop the customer ID column because the monthly report depends on it. Match on status not on state. The index should cover created\\_at and keep it non-unique so duplicate rows still insert and utterance",
+          "received": "Add an index on the orders table and never drop the customer ID column because the monthly report depends on it. Match on status not on state. The index should cover created\\_at and keep it non-unique so duplicate rows still insert",
           "note_id": "7d0a6418-47e2-480a-a2c3-2d353e0f059b"
         },
         {
           "id": "u3",
           "auto_cleanup": "None",
           "label": "u3 sql/index",
-          "received": "Add an index on the orders table and never drop the customer ID column because the monthly report depends on it. Match on status not on state. The index should cover created\\_at and keep it non-unique so duplicate rows still insert end utterance.",
+          "received": "Add an index on the orders table and never drop the customer ID column because the monthly report depends on it. Match on status not on state. The index should cover created\\_at and keep it non-unique so duplicate rows still insert",
           "note_id": "cf2d7038-7e82-4275-8acb-4dd7312d147f"
         }
       ]
@@ -120,14 +121,14 @@
           "id": "u3d",
           "auto_cleanup": "None",
           "label": "u3 sql/index + dictionary",
-          "received": "Add an index on the orders table and never drop the customer\\_id column because the monthly report depends on it. Match on status, not on state. The index should cover created\\_at and keep it non-unique so duplicate rows still insert end utterance.",
+          "received": "Add an index on the orders table and never drop the customer\\_id column because the monthly report depends on it. Match on status, not on state. The index should cover created\\_at and keep it non-unique so duplicate rows still insert",
           "note_id": "38ca3a07-ae22-49e7-8cc0-72d9ac97f103"
         },
         {
           "id": "u3d",
           "auto_cleanup": "Medium",
           "label": "u3 sql/index + dictionary",
-          "received": "Add an index on the orders table and never drop the \\`customer\\_id\\` column because the monthly report depends on it. Match on status, not on state. The index should cover \\`created\\_at\\` and be non-unique so duplicate rows can still be inserted and utterance",
+          "received": "Add an index on the orders table and never drop the \\`customer\\_id\\` column because the monthly report depends on it. Match on status, not on state. The index should cover \\`created\\_at\\` and be non-unique so duplicate rows can still be inserted",
           "note_id": "c2c9457e-aadd-4268-8782-6db27eae6d9b"
         }
       ]
@@ -141,21 +142,21 @@
           "id": "u4",
           "auto_cleanup": "Light",
           "label": "u4 config/deploy",
-          "received": "Set the timeout to 30 seconds in the deploy config and never commit the staging credentials because that would leak them. Use the environment variable not a literal. The retry count is 3 and keep the backoff exponential rather than fixed end utterance.",
+          "received": "Set the timeout to 30 seconds in the deploy config and never commit the staging credentials because that would leak them. Use the environment variable not a literal. The retry count is 3 and keep the backoff exponential rather than fixed",
           "note_id": "e17b0549-bcb2-4102-8505-980bfc311ced"
         },
         {
           "id": "u4",
           "auto_cleanup": "None",
           "label": "u4 config/deploy",
-          "received": "Set the timeout to 30 seconds in the deploy config and never commit the staging credentials because that would leak them. Use the environment variable, not a literal. The retry count is three, and keep the backoff exponential rather than fixed and utterance",
+          "received": "Set the timeout to 30 seconds in the deploy config and never commit the staging credentials because that would leak them. Use the environment variable, not a literal. The retry count is three, and keep the backoff exponential rather than fixed",
           "note_id": "48751c6b-f147-454a-a0d8-b6a86c12670d"
         },
         {
           "id": "u4",
           "auto_cleanup": "Medium",
           "label": "u4 config/deploy",
-          "received": "Set the timeout to 30 seconds in the deploy config, and never commit the staging credentials because that would leak them. Use the environment variable, not a literal. The retry count is 3, and keep the backoff exponential rather than fixed. And utterance",
+          "received": "Set the timeout to 30 seconds in the deploy config, and never commit the staging credentials because that would leak them. Use the environment variable, not a literal. The retry count is 3, and keep the backoff exponential rather than fixed.",
           "note_id": "eef333d7-9ceb-4f0b-b894-443f9fe7c76f"
         }
       ]
@@ -169,41 +170,42 @@
           "id": "u5",
           "auto_cleanup": "Light",
           "label": "u5 payments",
-          "received": "Refactor the payment handler into two functions and never change the rounding behaviour because the finance team reconciles against it. Name the new file payment\\_utils.py. Keep the currency as an integer not a float and raise on anything over 99 cents rather than silently capping end utterance.",
+          "received": "Refactor the payment handler into two functions and never change the rounding behaviour because the finance team reconciles against it. Name the new file payment\\_utils.py. Keep the currency as an integer not a float and raise on anything over 99 cents rather than silently capping",
           "note_id": "bec5d0c5-85b5-403d-891e-8d7283bea89d"
         },
         {
           "id": "u5",
           "auto_cleanup": "None",
           "label": "u5 payments",
-          "received": "Refactor the payment handler into two functions and never change the rounding behaviour because the finance team reconciles against it. Name the new file payment\\_utils.py. Keep the currency as an integer, not a float, and raise on anything over ninety nine cents rather than silently capping and utterance",
+          "received": "Refactor the payment handler into two functions and never change the rounding behaviour because the finance team reconciles against it. Name the new file payment\\_utils.py. Keep the currency as an integer, not a float, and raise on anything over ninety nine cents rather than silently capping",
           "note_id": "507f199f-2fb9-44e3-a147-94cd2467086d"
         },
         {
           "id": "u5",
           "auto_cleanup": "Medium",
           "label": "u5 payments",
-          "received": "Refactor the payment handler into two functions and never change the rounding behaviour because the finance team reconciles against it. Name the new file payment\\_utils.py. Keep the currency as an integer, not a float, and raise on anything over 99 cents rather than silently capping end utterance.",
+          "received": "Refactor the payment handler into two functions and never change the rounding behaviour because the finance team reconciles against it. Name the new file payment\\_utils.py. Keep the currency as an integer, not a float, and raise on anything over 99 cents rather than silently capping",
           "note_id": "3afc201a-0f18-436c-b83e-8597b5f8a98c"
         }
       ]
     }
   ],
   "limitations": [
-    "Five dictated utterances, one speaker, one session. That is enough to show an effect is real and to characterise its spread. It is not enough to characterise its distribution, and no confidence interval is claimed.",
-    "The five utterances are technical instructions the author wrote and then read aloud. They are not a random sample of development speech, and the results should not be read as one.",
+    "Five dictated utterances, one speaker, one session per day. That is enough to show an effect is real and to characterise its spread. It is not enough to characterise its distribution, and no confidence interval is claimed.",
+    "The utterances are technical instructions the author wrote and then read aloud, deliberately dense with filenames, numerals and prohibitions. They are not a random sample of development speech and the effects here are upper bounds on how often they occur.",
     "The spoken side is the script, not a transcript. A local ASR engine read the same audio and disagreed with Wispr in both directions, so neither is treated as ground truth.",
-    "The scorer does not normalise spoken number words. '99' arriving as 'ninety nine' is counted as a loss even though the meaning is intact, which adds noise to every figure.",
-    "Backslash escaping of underscores was not understood during collection and is not modelled. Four identifiers were affected and are reported by inspection instead.",
+    "Number folding treats a bare unit word that is also a number word as a number, so 'one file' becomes '1 file'. Both sides fold identically so nothing is lost, but the token count is not the raw count of what was said.",
+    "A number run broken by a non-number word is left alone, so 'two point none' stays as written. That protects version strings at the cost of missing a decimal that was genuinely spelled out.",
+    "Backslash escaping is undone outside code spans as well as inside them, because escaped backticks make a code span impossible to detect reliably. A backslash that a reader would actually see is therefore scored as surviving.",
     "Reading pace was not held constant across the passes.",
     "Audio is not published, because it contains a voice."
   ],
-  "findings": {
-    "spread": {
-      "None": 7.2,
-      "Light": 36.1,
-      "Medium": 41.0
-    },
-    "note": "percentage points between the best and worst utterance at each setting"
-  }
+  "findings": [
+    "Cleanup is not reliably worse, it is wildly variable. Across five utterances raw passthrough spans 4.8 points, Light 34.9 and Medium 41.0. Medium scored above raw passthrough on u5.",
+    "On u1, at both rewrite settings, 'no pytest' arrived as 'not pytest'. That is the opposite instruction, delivered without any error. Raw passthrough delivered it correctly.",
+    "u1 shows the rewrite settings dropping a version constraint, a numeric limit and the filename, while u4 shows them scoring a clean 100%. The same setting produced both.",
+    "Spelled-out numbers and markdown-escaped identifiers were initially scored as losses. Both were scorer faults rather than pipeline damage, and fixing them moved every figure in this corpus.",
+    "The capture marker is itself subject to dictation corruption: 'end utterance' arrived as 'and utterance' in four runs and as a bare 'utterance' in three. Scaffolding that survives into the measurement is scaffolding the tool has to know about.",
+    "A unit abbreviation is not a loss: '240 pixels' arriving as 240px still says 240, and '8 pixels' arriving as 8px still says 8. The mirror case, '1rem' becoming 'one rem', is a real loss, because a literal became prose."
+  ]
 }

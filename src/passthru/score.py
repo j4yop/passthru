@@ -27,7 +27,17 @@ import difflib
 import re
 from typing import NamedTuple
 
-TOKEN_PATTERN = re.compile(r"[A-Za-z0-9_.]+")
+# Backslash and backtick are in the token alphabet so that a markdown-escaped identifier
+# stays one token. `\_score.py` is the filename `score.py` with an escaping backslash in
+# front of it; matching across the backslash is what lets the two be recognised as the same
+# name rather than as the unrelated tokens `test` and `_score.py`.
+TOKEN_PATTERN = re.compile(r"[A-Za-z0-9_.\\`]+")
+
+# A backslash escapes the character after it. Only when that character is punctuation: a
+# backslash before a letter is a path separator (`C:\Users\jay`) and must be kept.
+# The characters a backslash may escape in markdown. A backslash before anything else is
+# not an escape and is left alone.
+_ESCAPABLE = frozenset("\\`*_{}[]()#+-.!|>~")
 # Trailing `.` and `_` are sentence punctuation, not part of a name: `score.py.` is the
 # filename `score.py` followed by a full stop, and treating them as different tokens
 # reports a filename as lost when it survived. Leading dots are kept, because `.env`
@@ -63,6 +73,48 @@ def tokenize(text: str, strip: tuple[str, ...] = DEFAULT_STRIP) -> list[str]:
     return [token for token, _, _ in tokenize_spans(text, strip)]
 
 
+def _token_span(raw: str, offset: int) -> tuple[str, int, int] | None:
+    """Reduce a raw token match to (clean_token, absolute_start, absolute_end).
+
+    Three representations of one identifier have to count as one token, because the agent
+    reads all three identically: `score.py`, ``` `score.py` ``` and `score\\_py` are the same
+    filename. So escape backslashes are dropped and surrounding backticks are stripped.
+
+    Doing that changes the token's length, and a span that still pointed at the raw match
+    would hand align the wrong characters to slice: it would quote the escaping backslash
+    and the closing backtick as part of the filename, and would drag a sentence's full stop
+    into the token it followed. So rather than recompute a length, this tracks which raw
+    characters survived and reports the span of exactly those. Offsets are never guessed.
+    """
+    kept: list[tuple[str, int]] = []
+    index = 0
+    while index < len(raw):
+        char = raw[index]
+        # An escape sequence is one character of content written as two.
+        if char == "\\" and index + 1 < len(raw) and raw[index + 1] in _ESCAPABLE:
+            kept.append((raw[index + 1], index + 1))
+            index += 2
+            continue
+        kept.append((char, index))
+        index += 1
+
+    # Backticks delimit a code span, which is markup rather than part of the name. Only
+    # leading and trailing ones go, so a name that genuinely contains one is unharmed.
+    while kept and kept[0][0] == "`":
+        kept.pop(0)
+    while kept and kept[-1][0] == "`":
+        kept.pop()
+    # Trailing `.` and `_` are sentence punctuation. Leading ones are kept, because `.env`
+    # and `.gitignore` are named that way.
+    while kept and kept[-1][0] in _TRAILING:
+        kept.pop()
+
+    if not kept:
+        return None
+    token = "".join(char for char, _ in kept).lower()
+    return token, offset + kept[0][1], offset + kept[-1][1] + 1
+
+
 def tokenize_spans(
     text: str, strip: tuple[str, ...] = DEFAULT_STRIP
 ) -> list[tuple[str, int, int]]:
@@ -76,17 +128,129 @@ def tokenize_spans(
         cleaned = re.sub(re.escape(phrase), " ", cleaned, flags=re.IGNORECASE)
     spans: list[tuple[str, int, int]] = []
     for match in TOKEN_PATTERN.finditer(cleaned):
-        raw = match.group()
-        # rstrip only. Stripping both ends would turn the dotfile `.env` into `env`.
-        trimmed = raw.rstrip(_TRAILING)
-        if not trimmed:
+        resolved = _token_span(match.group(), match.start())
+        if resolved is not None:
+            spans.append(resolved)
+    return _spell_numbers(spans)
+
+
+_UNITS = {
+    "zero": 0, "one": 1, "two": 2, "three": 3, "four": 4, "five": 5, "six": 6,
+    "seven": 7, "eight": 8, "nine": 9, "ten": 10, "eleven": 11, "twelve": 12,
+    "thirteen": 13, "fourteen": 14, "fifteen": 15, "sixteen": 16,
+    "seventeen": 17, "eighteen": 18, "nineteen": 19,
+}
+_TENS = {
+    "twenty": 20, "thirty": 30, "forty": 40, "fifty": 50, "sixty": 60,
+    "seventy": 70, "eighty": 80, "ninety": 90,
+}
+_NUMBER_WORDS = frozenset(_UNITS) | frozenset(_TENS) | {"hundred", "point", "and"}
+
+
+def _word_value(word: str) -> int | None:
+    """The number a token denotes: an already-written digit, or a number word."""
+    if word.isdigit():
+        return int(word)
+    if word in _UNITS:
+        return _UNITS[word]
+    if word in _TENS:
+        return _TENS[word]
+    return None
+
+
+def _parse_integer(words: list[str]) -> int | None:
+    """Fold unit, tens and hundred words into one value, or None if they are not numeric.
+
+    `and` is ignored so that "one hundred and five" reads as 105. A bare "hundred" is
+    rejected: "a hundred" is the natural phrasing for it, and folding the word on its own
+    would turn ordinary prose into a number.
+    """
+    significant = [w for w in words if w != "and"]
+    if not significant:
+        return None
+
+    total = current = 0
+    seen_value = False
+    for word in significant:
+        if word == "hundred":
+            if not seen_value:
+                return None
+            current = (current or 1) * 100
             continue
-        # Only the tail was removed, so the start is unchanged and the end pulls back.
-        # Shifting the start forward here would slice mid-token for callers that read
-        # text back out by span, which is how "thing." turned into "hing.".
-        start = match.start()
-        spans.append((trimmed.lower(), start, start + len(trimmed)))
-    return spans
+        value = _word_value(word)
+        if value is None:
+            return None
+        seen_value = True
+        current += value
+    return total + current
+
+
+def _parse_number(words: list[str]) -> str | None:
+    """Turn a run of number words into the digits it denotes, or None if it is not one.
+
+    `ninety nine` is 99 and `three point ten` is 3.10. `point` only introduces a decimal
+    when number words follow it, so the ordinary phrase "the point of this" is left alone.
+    """
+    if "point" not in words:
+        whole = _parse_integer(words)
+        return None if whole is None else str(whole)
+
+    pivot = words.index("point")
+    whole = _parse_integer(words[:pivot])
+    spoken = [w for w in words[pivot + 1:] if w != "and"]
+    # A bare trailing "point", or nothing numeric after it, is prose.
+    if whole is None or not spoken:
+        return None
+
+    values = [_word_value(w) for w in spoken]
+    if any(v is None for v in values):
+        return None
+
+    # One word past the point is one digit, except that ten through nineteen are two. That
+    # is what makes "three point ten" 3.10 rather than 3.1, matching the speaker's own
+    # "3.10" instead of a number this tool invented.
+    if len(spoken) == 1 and values[0] < 10:
+        digits = str(values[0])
+    elif len(spoken) == 1:
+        digits = str(values[0]).zfill(2)
+    else:
+        digits = "".join(str(v) for v in values)
+    return f"{whole}.{digits}"
+
+
+def _spell_numbers(spans: list[tuple[str, int, int]]) -> list[tuple[str, int, int]]:
+    """Fold runs of number words into single numeric tokens.
+
+    Wispr spells numbers back out when it rewrites a line: 99 arrives as `ninety nine`,
+    0.5 as `zero point five`. The meaning is intact and the agent reads it correctly, so
+    counting it as a loss is the scorer manufacturing damage that the pipeline did not do.
+    It also cost more than a cosmetic point. Two tokens on the spoken side and one on the
+    received side could never match, so `99` scored as a total loss.
+
+    Spans are merged to cover the whole run, never moved: align slices the received text by
+    span to show what arrived, and a span that did not match the original characters would
+    return the wrong words.
+    """
+    out: list[tuple[str, int, int]] = []
+    index = 0
+    while index < len(spans):
+        word = spans[index][0]
+        if word not in _NUMBER_WORDS:
+            out.append(spans[index])
+            index += 1
+            continue
+
+        end = index
+        while end < len(spans) and spans[end][0] in _NUMBER_WORDS:
+            end += 1
+        run = spans[index:end]
+        value = _parse_number([token for token, _, _ in run])
+        if value is None:
+            out.extend(run)
+        else:
+            out.append((value, run[0][1], run[-1][2]))
+        index = end
+    return out
 
 
 def score_stage(before: str, after: str, strip: tuple[str, ...] = DEFAULT_STRIP) -> Survival:

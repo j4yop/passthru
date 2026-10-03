@@ -115,13 +115,34 @@ def test_utterance_split_falls_back_to_sentences():
 def test_token_spans_slice_whole_tokens_not_mid_token():
     # Regression: the span offset was shifted forward by the length of the stripped
     # tail, so slicing by span returned "hing." for the token "thing.".
+    #
+    # The check re-tokenises the slice rather than comparing strings, because a span may
+    # legitimately cover characters that normalise to something shorter. "One" is spelled
+    # out and folds to the token "1"; the span must still cover exactly those three
+    # characters and not the full stop after them. Comparing raw text would call that a
+    # failure when it is the span arithmetic that is actually under test.
+    from passthru.score import tokenize, tokenize_spans
+
+    for text in (
+        "One thing. Three thing.",
+        "keep 99 files and `test\\_score.py` here",
+        "Bravo two. C:\\Users\\jay ran. .env stays",
+    ):
+        for token, start, end in tokenize_spans(text):
+            assert tokenize(text[start:end]) == [token], (
+                f"span for {token!r} sliced {text[start:end]!r}"
+            )
+
+
+def test_spans_exclude_markup_that_is_not_part_of_the_name():
+    """Escaping and code spans are serialisation, not content, and must stay outside the
+    span. If they crept in, align would quote the backtick as part of the filename."""
     from passthru.score import tokenize_spans
 
-    text = "One thing. Three thing."
-    for token, start, end in tokenize_spans(text):
-        assert text[start:end].lower() == token, (
-            f"span for {token!r} sliced {text[start:end]!r}"
-        )
+    text = "use `score.py` then test\\_score.py here"
+    spans = {token: text[start:end] for token, start, end in tokenize_spans(text)}
+    assert spans["score.py"] == "score.py"
+    assert spans["test_score.py"] == "test\\_score.py"
 
 
 def test_alignment_drift_is_bounded_on_short_repeated_vocabulary():
@@ -357,18 +378,35 @@ def test_advice_refusal_states_the_right_reason(views):
     wrong reason, saying the cause was unidentifiable when in fact nothing was lost.
     The reason text has to be pinned, not merely the fact of refusal."""
     reasons = [a.reason.lower() for a in advise(views)]
-    assert any("not identifiable" in r for r in reasons), (
-        "a run that lost something must say the cause could not be identified"
+    categories = ("guess", "not identifiable", "number or a bare term")
+    assert all(any(c in r for c in categories) for r in reasons), (
+        "every refusal must fall into a named, explained category"
     )
-    assert all(
-        "guess" in r or "not identifiable" in r or "numbers and bare terms" in r
-        for r in reasons
-    ), "every refusal must fall into a named, explained category"
+    # Anything the tool cannot attribute has to say so rather than pick a culprit.
+    for reason in reasons:
+        if "no change recommended" in reason:
+            assert "no setting change is recommended" in reason or "guess" in reason
 
 
-def test_advice_refuses_without_a_comparison_run(views):
-    lone = next(v for v in views if v.lost_requirements)
-    refused = advise([lone])[0]
+def test_advice_refuses_without_a_comparison_run():
+    """A run on its own cannot support a recommendation.
+
+    Deciding that cleanup caused a loss needs another run of the *same* utterance to point
+    at, so advice is handed one view with a genuinely actionable loss and nothing to
+    compare it against.
+    """
+    from passthru.constraints import Requirement
+    from passthru.report import RunView
+
+    lonely = RunView(
+        run_id="u1", auto_cleanup="Light", label="", ratio=0.7, spoken=20,
+        pairs=[], capture="u1", is_default=True,
+        lost_requirements=[
+            Requirement(kind="filename", text="score.py", value="score.py",
+                        severity=2, survived=False)
+        ],
+    )
+    refused = advise([lonely])[0]
     assert not refused.has_recommendation
     assert "not identifiable" in refused.reason
 
@@ -954,3 +992,134 @@ def test_the_page_scorer_agrees_with_the_package():
         capture_output=True, text=True, cwd=Path(__file__).resolve().parents[1],
     )
     assert result.returncode == 0, f"browser scorer drifted from the package:\n{result.stderr}"
+
+
+# --- Normalisation added after the corpus grew to five utterances -------------------
+#
+# Both of these were listed as limitations while the figures above them were published.
+# A limitation is a decision to stop measuring; these two were bugs, and the numbers moved
+# a great deal once they were fixed.
+
+
+@pytest.mark.parametrize("digits,words", [
+    ("99", "ninety nine"),
+    ("200", "two hundred"),
+    ("105", "one hundred and five"),
+    ("8", "eight"),
+    ("0.5", "zero point five"),
+    ("3.10", "three point ten"),
+    ("3.14", "three point one four"),
+    ("keep 99 files", "keep ninety nine files"),
+])
+def test_a_number_spelled_out_is_the_same_number(digits, words):
+    """Wispr spells numbers back out when it rewrites a line, and the meaning survives.
+
+    Before this, `99` and `ninety nine` were two tokens against one, so the comparison
+    could not succeed at any setting and a version constraint scored as a total loss.
+    """
+    assert score_stage(digits, words).ratio == 1.0
+
+
+@pytest.mark.parametrize("text,unchanged", [
+    ("the point of this is that it works",
+     ["the", "point", "of", "this", "is", "that", "it", "works"]),
+    ("a hundred reasons", ["a", "hundred", "reasons"]),
+    ("point of order matters", ["point", "of", "order", "matters"]),
+])
+def test_ordinary_uses_of_number_words_are_not_numbers(text, unchanged):
+    """Folding must not fire on prose that merely contains a number word.
+
+    The failure mode is silent. If `point` folded on sight, or a bare `hundred` did, the
+    token count would shift under every figure in the corpus without anything looking
+    wrong, and because both sides would be rewritten consistently the parity test would
+    still pass. So the tokens are checked directly rather than by comparing the text to
+    itself, which would pass either way.
+    """
+    assert tokenize(text) == unchanged
+
+
+def test_a_number_run_broken_by_an_ordinary_word_is_not_a_number():
+    """`two point none` is a version, not 2.0.
+
+    `none` is not a number word, so the run stops there, `point` finds nothing numeric
+    after it, and the whole sequence is left alone. Folding it would corrupt a real
+    version string, which is the kind of quiet damage this tool is meant to avoid.
+    """
+    assert tokenize("version two point none") == ["version", "two", "point", "none"]
+
+
+def test_a_unit_word_that_is_a_number_word_still_folds():
+    """`one file` and `1 file` mean the same thing, so folding is right here.
+
+    This is the debatable case in the change and it is pinned deliberately: the earlier
+    reasoning treated bare number words as too ambiguous to touch, which would have left
+    `one` broken while `ninety nine` was fixed. Consistency beats a special case that
+    cannot be justified, and both sides fold identically so nothing is lost either way.
+    """
+    assert tokenize("one file is enough") == ["1", "file", "is", "enough"]
+    assert score_stage("one file", "1 file").ratio == 1.0
+
+
+def test_a_bare_hundred_is_not_a_number():
+    assert tokenize("a hundred reasons") == ["a", "hundred", "reasons"]
+    assert tokenize("one hundred reasons") == ["100", "reasons"]
+
+
+@pytest.mark.parametrize("escaped,plain", [
+    ("test\\_score.py", "test_score.py"),
+    ("payment\\_utils.py", "payment_utils.py"),
+    ("created\\_at", "created_at"),
+    ("customer\\_id", "customer_id"),
+    ("`score.py`", "score.py"),
+    ("\\`customer\\_id\\`", "customer_id"),
+])
+def test_markdown_escaping_and_code_spans_are_not_content(escaped, plain):
+    """Three serialisations of one identifier, and the agent reads all three the same.
+
+    `test\\_score.py` is `test_score.py` with an escaping backslash. Scoring it as a
+    different filename reported a loss that never happened, at every setting including raw
+    passthrough, and made the recogniser look like it was damaging identifiers when it was
+    only quoting them.
+    """
+    assert score_stage(plain, escaped).ratio == 1.0
+    assert tokenize(escaped) == [plain.lower()]
+
+
+def test_a_backslash_before_a_letter_is_a_path_not_an_escape():
+    """`C:\\Users\\jay` must survive intact; only punctuation can be escaped."""
+    assert tokenize("C:\\Users\\jay") == ["c", "\\users\\jay"]
+    assert score_stage("C:\\Users\\jay", "C:\\Users\\jay").ratio == 1.0
+
+
+def test_requirement_extraction_agrees_with_the_token_scorer():
+    """The two halves of the report must not contradict each other.
+
+    A run reported 100% token survival directly above a requirement list saying the
+    filename was lost, because requirement matching ran on the raw delivered string while
+    the scorer ran on normalised tokens. One definition now serves both.
+    """
+    escaped = "add the file payment\\_utils.py and the retry count is 3"
+    spoken = "add the file payment_utils.py and the retry count is 3"
+    requirements = extract(spoken)
+    assert requirements, "expected the filename to be extracted"
+    assert all(r.survived for r in mark_lost(requirements, escaped))
+    assert score_stage(spoken, escaped).ratio == 1.0
+
+
+def test_a_number_that_only_lost_its_unit_abbreviation_has_survived():
+    """`240 pixels` arriving as `240px` still says 240.
+
+    Reporting that constraint as lost would be the scorer inventing damage, and it is the
+    mirror image of `1rem` becoming `one rem`, which is a genuine loss because a literal
+    turned into prose.
+    """
+    requirements = extract("the panel is 240 pixels wide and the radius is 8 pixels")
+    numbers = {r.value for r in requirements if r.kind == "number"}
+    assert numbers == {"240", "8"}
+
+    abbreviated = mark_lost(requirements, "the panel is 240px wide and the radius is 8px")
+    assert all(r.survived for r in abbreviated if r.kind == "number")
+
+    # And the number must match on a whole token: 24 is not satisfied by 240.
+    wrong = mark_lost(requirements, "the panel is 2400px wide")
+    assert not [r for r in wrong if r.value == "240"][0].survived

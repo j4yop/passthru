@@ -26,6 +26,8 @@ from __future__ import annotations
 import re
 from typing import NamedTuple
 
+from .score import tokenize
+
 SEVERITY = {
     "prohibition": 5,
     "keep": 4,
@@ -102,23 +104,17 @@ _CONTRACTION = re.compile(
     r"\b(" + "|".join(sorted(map(re.escape, _CONTRACTIONS), key=len, reverse=True)) + r")\b",
     re.IGNORECASE,
 )
-_WORD = re.compile(r"[\w.+#-]+")
-_TRAILING = "._"
-
-
 def _words(text: str) -> list[str]:
-    """Word-ish tokens with trailing `.` and `_` removed.
+    """Tokens, using the scorer's tokenizer rather than a second one.
 
-    `score.py.` is the filename followed by a full stop. Without this the same trailing
-    punctuation bug that once hid a surviving filename in the token scorer reappears
-    here, and a requirement gets reported lost when it arrived intact.
+    This module used to define its own word pattern. That was the whole problem: the
+    scorer learned to undo markdown escaping and to fold spelled-out numbers, and this
+    one did not, so the two disagreed about the same text. A run could report 100% token
+    survival while the requirement list underneath said the filename was lost, which is
+    exactly the kind of self-contradiction this project exists to criticise. One
+    definition, imported, so they cannot drift again.
     """
-    out = []
-    for word in _WORD.findall(text or ""):
-        trimmed = word.strip(_TRAILING)
-        if trimmed:
-            out.append(trimmed)
-    return out
+    return tokenize(text)
 
 
 def _clean(fragment: str) -> str:
@@ -197,7 +193,11 @@ def mark_lost(requirements: list[Requirement], received: str) -> list[Requiremen
     """Return the same requirements with `survived` set against the received text.
 
     Atomic requirements -- a filename, a number, the rejected half of a choice -- are
-    tested by exact presence, because half of one is worse than none.
+    tested by exact presence, because half of one is worse than none. Presence is tested
+    against the token bag rather than by substring on the raw string. Substring looked
+    equivalent and was not: it read the delivered text before the tokenizer had undone
+    markdown escaping, so `payment\\_utils.py` never matched `payment_utils.py` and a run
+    reported 100% token survival directly above a list saying the filename was lost.
 
     Multi-word requirements are tested by token overlap rather than substring. Their
     `value` has stopwords stripped, so it will never appear verbatim in prose even when
@@ -206,29 +206,48 @@ def mark_lost(requirements: list[Requirement], received: str) -> list[Requiremen
     A requirement counts as survived when at least 70% of its significant tokens made it
     across.
     """
-    haystack = _normalise(received)
-    bag = set(_words(haystack))
+    bag = set(_words(_normalise(received)))
 
     out: list[Requirement] = []
     for req in requirements:
         needle = req.value.lower()
 
-        if req.kind in ("filename", "number", "choice"):
-            present = needle in haystack
-            if req.kind == "choice" and not present:
+        def present(fragment: str) -> bool:
+            """Whether every token of `fragment` arrived. Exact, not substring.
+
+            Substring would also match `score.py` inside `myscore.py`, and would match
+            before escaping was undone. Requiring the whole token set is both stricter
+            and simpler than either.
+            """
+            tokens = _words(fragment)
+            return bool(tokens) and all(token in bag for token in tokens)
+
+        if req.kind == "number":
+            # A number keeps its value when only the unit is abbreviated: "240 pixels"
+            # arriving as `240px` still says 240, and reporting the constraint as lost
+            # would be the scorer inventing damage. Matching is on a whole token so that
+            # 24 is not satisfied by 240, and the remainder must be letters, so 24 is not
+            # satisfied by 240px either.
+            ok = present(needle) or any(
+                token.startswith(needle) and token[len(needle):].isalpha()
+                for token in bag
+            )
+        elif req.kind in ("filename", "choice"):
+            ok = present(needle)
+            if req.kind == "choice" and not ok:
                 # "not Levenshtein" can vanish while "difflib" survives, leaving the
                 # instruction ambiguous rather than absent. Still a loss of the choice.
                 chosen = req.text.split(",")[-1].strip().lower() if req.text else ""
-                present = bool(chosen) and chosen in haystack
+                ok = bool(chosen) and present(chosen)
         else:
             tokens = _significant(needle)
             if not tokens:
-                present = bool(needle) and needle in haystack
+                ok = present(needle)
             else:
                 hits = sum(1 for t in tokens if t in bag)
-                present = hits / len(tokens) >= 0.7
+                ok = hits / len(tokens) >= 0.7
 
-        out.append(req._replace(survived=present))
+        out.append(req._replace(survived=ok))
     return out
 
 

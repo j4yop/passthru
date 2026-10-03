@@ -5,9 +5,95 @@
 // lying about the tool, so the tokenizer rules are kept identical: keep '.' and '_'
 // inside a token, strip them only from the tail, lowercase, and drop capture markers.
 
-const TOKEN = /[A-Za-z0-9_.]+/g;
+const TOKEN = /[A-Za-z0-9_.\\`]+/g;
 const TRAILING = /[._]+$/;
 const MARKERS = /end utterance/gi;
+const ESCAPABLE = new Set('\\`*_{}[]()#+-.!|>~'.split(''));
+
+const UNITS = { zero: 0, one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7,
+  eight: 8, nine: 9, ten: 10, eleven: 11, twelve: 12, thirteen: 13, fourteen: 14,
+  fifteen: 15, sixteen: 16, seventeen: 17, eighteen: 18, nineteen: 19 };
+const TENS = { twenty: 20, thirty: 30, forty: 40, fifty: 50, sixty: 60, seventy: 70,
+  eighty: 80, ninety: 90 };
+const NUMBER_WORDS = new Set([...Object.keys(UNITS), ...Object.keys(TENS),
+  'hundred', 'point', 'and']);
+
+function wordValue(word) {
+  if (/^[0-9]+$/.test(word)) return parseInt(word, 10);
+  if (Object.prototype.hasOwnProperty.call(UNITS, word)) return UNITS[word];
+  if (Object.prototype.hasOwnProperty.call(TENS, word)) return TENS[word];
+  return null;
+}
+
+function parseInteger(words) {
+  const significant = words.filter(w => w !== 'and');
+  if (!significant.length) return null;
+  let current = 0, seen = false;
+  for (const word of significant) {
+    if (word === 'hundred') {
+      if (!seen) return null;
+      current = (current || 1) * 100;
+      continue;
+    }
+    const value = wordValue(word);
+    if (value === null) return null;
+    seen = true;
+    current += value;
+  }
+  return current;
+}
+
+function parseNumber(words) {
+  const pivot = words.indexOf('point');
+  if (pivot === -1) {
+    const whole = parseInteger(words);
+    return whole === null ? null : String(whole);
+  }
+  const whole = parseInteger(words.slice(0, pivot));
+  const spoken = words.slice(pivot + 1).filter(w => w !== 'and');
+  // A bare trailing "point", or nothing numeric after it, is prose.
+  if (whole === null || !spoken.length) return null;
+  const values = spoken.map(wordValue);
+  if (values.some(v => v === null)) return null;
+  // One word past the point is one digit, except ten through nineteen, which are two.
+  // That is what makes "three point ten" 3.10 rather than 3.1.
+  let digits;
+  if (spoken.length === 1 && values[0] < 10) digits = String(values[0]);
+  else if (spoken.length === 1) digits = String(values[0]).padStart(2, '0');
+  else digits = values.join('');
+  return `${whole}.${digits}`;
+}
+
+function foldNumbers(tokens) {
+  const out = [];
+  let index = 0;
+  while (index < tokens.length) {
+    if (!NUMBER_WORDS.has(tokens[index])) { out.push(tokens[index]); index += 1; continue; }
+    let end = index;
+    while (end < tokens.length && NUMBER_WORDS.has(tokens[end])) end += 1;
+    const run = tokens.slice(index, end);
+    const value = parseNumber(run);
+    if (value === null) out.push(...run);
+    else out.push(value);
+    index = end;
+  }
+  return out;
+}
+
+function cleanToken(raw) {
+  // Drop escape backslashes, then the backticks that delimited a code span. Only the
+  // outermost ones, so a name containing one is unharmed.
+  let token = '';
+  for (let i = 0; i < raw.length; i += 1) {
+    if (raw[i] === '\\' && i + 1 < raw.length && ESCAPABLE.has(raw[i + 1])) {
+      token += raw[i + 1];
+      i += 1;
+      continue;
+    }
+    token += raw[i];
+  }
+  return token.replace(/^`+/, '').replace(/`+$/, '').replace(TRAILING, '');
+}
 
 function tokenize(text) {
   if (!text) return [];
@@ -16,10 +102,10 @@ function tokenize(text) {
   let m;
   TOKEN.lastIndex = 0;
   while ((m = TOKEN.exec(cleaned)) !== null) {
-    const trimmed = m[0].replace(TRAILING, '');
+    const trimmed = cleanToken(m[0]);
     if (trimmed) out.push(trimmed.toLowerCase());
   }
-  return out;
+  return foldNumbers(out);
 }
 
 // Longest common subsequence over token indices, walked back to classify each spoken

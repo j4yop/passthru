@@ -147,13 +147,15 @@ def advise(views: list[RunView]) -> list[Advice]:
                         run_id=view.run_id,
                         auto_cleanup=view.auto_cleanup,
                         reason=(
-                            "Only numbers and bare terms were lost, which on this corpus "
-                            "reflects how the scorer compares text rather than damage to "
-                            "the instruction. No setting change is recommended."
+                            "What was lost here is a number or a bare term. A number can "
+                            "go missing because the recogniser dropped it rather than "
+                            "because the cleanup rewrote it, and this corpus has no "
+                            "comparison that separates the two. No setting change is "
+                            "recommended on this alone."
                         ),
                         evidence=(
                             f"{original.ratio * 100:.1f}% of tokens survived; "
-                            "losses were numeric or lexical only."
+                            "no requirement that a setting change could explain was lost."
                         ),
                     )
                 )
