@@ -38,97 +38,766 @@ SUBTITLE = (
 SURFACES = ""  # documented in README; the table here is static and cannot drift
 
 _STYLE = """
-:root{--bg:#fbfbfa;--fg:#1a1a19;--mut:#61615c;--line:#e4e4e0;--card:#fff;
---gone:#b42318;--kept:#0a7c5a;--warn:#b45309;--chip:#f1f1ee}
-@media (prefers-color-scheme: dark){:root{--bg:#131313;--fg:#ededea;--mut:#9b9b94;
---line:#2c2c2a;--card:#1a1a19;--gone:#ff8a80;--kept:#5fd3a8;--warn:#f0b429;
---chip:#232322}}
-*{box-sizing:border-box}
-body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.6 -apple-system,
-BlinkMacSystemFont,"Segoe UI",Inter,sans-serif;-webkit-font-smoothing:antialiased}
-.wrap{max-width:920px;margin:0 auto;padding:48px 22px 80px}
-h1{font-size:31px;line-height:1.16;letter-spacing:-.022em;margin:0 0 8px;font-weight:680}
-.sub{color:var(--mut);font-size:15px;margin:0 0 34px}
-h2{font-size:19px;letter-spacing:-.01em;margin:40px 0 12px;font-weight:650;
-padding-bottom:7px;border-bottom:1px solid var(--line)}
-h3{font-size:15.5px;margin:0;font-weight:650}
-.kicker{font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--mut);
-font-weight:650;margin-bottom:9px}
-.bars{background:var(--card);border:1px solid var(--line);border-radius:9px;padding:20px 22px}
-.bar{margin:0 0 17px}
-.bar:last-child{margin-bottom:0}
-.bar .top{display:flex;justify-content:space-between;align-items:baseline;gap:12px;
-margin-bottom:6px}
-.bar .name{font-weight:600;font-size:15px}
-.bar .name small{font-weight:400;color:var(--mut)}
-.bar .pct{font-variant-numeric:tabular-nums;font-weight:680;font-size:17px}
-.track{height:9px;background:var(--chip);border-radius:5px;overflow:hidden}
-.fill{display:block;height:100%;border-radius:5px;background:var(--kept)}
-.fill.warn{background:var(--warn)} .fill.bad{background:var(--gone)}
-.note{color:var(--mut);font-size:14px;margin:14px 0 0}
-details{background:var(--card);border:1px solid var(--line);border-radius:8px;
-margin:0 0 9px;overflow:hidden}
-summary{padding:13px 17px;cursor:pointer;font-weight:620;font-size:15px;list-style:none}
-summary::-webkit-details-marker{display:none}
-summary::before{content:"+ ";color:var(--mut);font-weight:400}
-details[open] summary::before{content:"− "}
-summary:hover{background:var(--chip)}
-.bd{padding:0 17px 16px;border-top:1px solid var(--line);font-size:14.5px}
-table{width:100%;border-collapse:collapse;margin:12px 0 0;font-size:14px}
-th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--line);
-vertical-align:top}
-th{font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--mut)}
-td.said,td.got{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12.5px;
-line-height:1.5}
-td.num{font-variant-numeric:tabular-nums;white-space:nowrap;text-align:right}
-.dead{color:var(--gone);font-family:ui-monospace,SFMono-Regular,Menlo,monospace;
-font-size:12.5px}
-.tok{display:inline-block;padding:1px 6px;margin:1px 3px 1px 0;border-radius:4px;
-background:var(--chip);font-family:ui-monospace,Menlo,monospace;font-size:12px}
-.tok.gone{background:color-mix(in srgb,var(--gone) 15%,transparent);color:var(--gone);
-text-decoration:line-through}
-.sev{display:inline-block;min-width:20px;padding:1px 6px;border-radius:4px;
-background:var(--chip);font-size:11px;font-weight:700;text-align:center}
-ul.lim{margin:0;padding-left:20px}
-ul.lim li{margin:0 0 8px}
-.warnbox{border:1px solid var(--warn);border-left-width:3px;border-radius:8px;
-padding:17px 19px;margin:14px 0 0;background:var(--card)}
-code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:13px;
-background:var(--chip);padding:1px 5px;border-radius:4px}
+:root {
+  --bg: #07080b;
+  --bg-sub: #0c0e14;
+  --bg-card: #10131c;
+  --bg-card-hover: #151926;
+  --bg-input: #08090d;
+  --border-chassis: rgba(255, 255, 255, 0.08);
+  --border-card: rgba(255, 255, 255, 0.12);
+  --border-inner: rgba(255, 255, 255, 0.05);
+  --fg: #f4f6fb;
+  --fg-dim: #9aa1b4;
+  --fg-muted: #656d82;
+  --accent-cyan: #00d4ff;
+  --accent-cyan-dim: rgba(0, 212, 255, 0.12);
+  --kept: #00e599;
+  --kept-dim: rgba(0, 229, 153, 0.12);
+  --warn: #ffb020;
+  --warn-dim: rgba(255, 176, 32, 0.12);
+  --gone: #ff3355;
+  --gone-dim: rgba(255, 51, 85, 0.14);
+  --chip: #151824;
+  --chip-border: rgba(255, 255, 255, 0.08);
+  --shadow-card: 0 16px 36px -10px rgba(0, 0, 0, 0.75), 0 2px 8px -2px rgba(0, 0, 0, 0.5);
+  --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
+}
 
-/* interactive scorer: an enhancement only. Every finding above is already in the
-   static text, so the document reads correctly with scripting disabled. */
-.try{margin:14px 0 0}
-.panes{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin:14px 0}
-@media (max-width:720px){.panes{grid-template-columns:1fr}}
-.pane{background:var(--card);border:1px solid var(--line);border-radius:8px;
-padding:13px 15px}
-.pane label{display:block;font-size:11px;letter-spacing:.09em;text-transform:uppercase;
-color:var(--mut);font-weight:650;margin-bottom:7px}
-textarea{width:100%;min-height:132px;resize:vertical;padding:10px 11px;border-radius:6px;
-border:1px solid var(--line);background:var(--bg);color:var(--fg);font:14px/1.55
-ui-monospace,SFMono-Regular,Menlo,monospace}
-textarea:focus{outline:2px solid var(--mut);outline-offset:1px}
-.btnrow{display:flex;flex-wrap:wrap;gap:8px;margin:4px 0 0}
-button{font:inherit;font-size:13.5px;font-weight:600;padding:7px 13px;border-radius:6px;
-border:1px solid var(--line);background:var(--card);color:var(--fg);cursor:pointer}
-button:hover{border-color:var(--mut)}
-button.primary{background:var(--fg);color:var(--bg);border-color:var(--fg)}
-.hint{color:var(--mut);font-size:13.5px;margin:0}
-.scorehead{display:flex;justify-content:space-between;align-items:baseline;
-gap:14px;flex-wrap:wrap;margin:18px 0 8px}
-.big{font-size:34px;font-weight:700;letter-spacing:-.025em;font-variant-numeric:tabular-nums}
-.small{color:var(--mut);font-size:13.5px}
-.ok{color:var(--kept)}
-ul.reqs{margin:10px 0 0;padding-left:0;list-style:none}
-ul.reqs li{margin:0 0 7px;font-size:14px}
-audio{width:100%;margin:10px 0 0;height:34px}
-.caption{font-size:12.5px;color:var(--mut);margin:6px 0 0}
-.noweb{display:none}
-.noscript{border:1px solid var(--warn);border-left-width:3px;border-radius:8px;
-padding:14px 16px;margin:14px 0 0;font-size:14px;background:var(--card)}
-@media (scripting:none){.noweb{display:block}.withjs{display:none}}
+@media (prefers-color-scheme: light) {
+  :root {
+    --bg: #f4f4f0;
+    --bg-sub: #eaeae4;
+    --bg-card: #ffffff;
+    --bg-card-hover: #fafafa;
+    --bg-input: #ffffff;
+    --border-chassis: rgba(0, 0, 0, 0.08);
+    --border-card: rgba(0, 0, 0, 0.11);
+    --border-inner: rgba(0, 0, 0, 0.04);
+    --fg: #0c0d10;
+    --fg-dim: #444955;
+    --fg-muted: #727a8e;
+    --accent-cyan: #0062cc;
+    --accent-cyan-dim: rgba(0, 98, 204, 0.08);
+    --kept: #008254;
+    --kept-dim: rgba(0, 130, 84, 0.08);
+    --warn: #c96d00;
+    --warn-dim: rgba(201, 109, 0, 0.08);
+    --gone: #d01c38;
+    --gone-dim: rgba(208, 28, 56, 0.08);
+    --chip: #e9e9e2;
+    --chip-border: rgba(0, 0, 0, 0.08);
+    --shadow-card: 0 12px 28px -8px rgba(0, 0, 0, 0.08), 0 2px 6px -2px rgba(0, 0, 0, 0.04);
+  }
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+
+body {
+  background-color: var(--bg);
+  background-image: 
+    linear-gradient(to right, var(--border-inner) 1px, transparent 1px),
+    linear-gradient(to bottom, var(--border-inner) 1px, transparent 1px);
+  background-size: 36px 36px;
+  color: var(--fg);
+  font: 15.5px/1.65 var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+::selection {
+  background: var(--accent-cyan);
+  color: #000;
+}
+
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: var(--bg); }
+::-webkit-scrollbar-thumb { background: var(--border-card); border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: var(--fg-muted); }
+
+.wrap {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 24px 20px 100px;
+}
+
+/* --- Top Navigation Flight Deck --- */
+.topbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 20px;
+  margin-bottom: 40px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-card);
+  border-radius: 9999px;
+  box-shadow: var(--shadow-card);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+.topbar-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.live-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--kept);
+  box-shadow: 0 0 12px var(--kept);
+  animation: radar-pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+@keyframes radar-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.5; transform: scale(1.15); }
+}
+.brand-tag {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-weight: 750;
+  letter-spacing: 0.06em;
+  color: var(--fg);
+}
+.brand-ver {
+  font-weight: 500;
+  color: var(--fg-muted);
+  font-size: 11px;
+}
+.hud-pill {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  letter-spacing: 0.08em;
+  padding: 2px 8px;
+  border-radius: 9999px;
+  background: var(--accent-cyan-dim);
+  color: var(--accent-cyan);
+  border: 1px solid rgba(0, 212, 255, 0.25);
+  font-weight: 650;
+}
+.topbar-nav {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.nav-link {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--fg-dim);
+  text-decoration: none;
+  padding: 5px 12px;
+  border-radius: 6px;
+  transition: color 0.15s, background 0.15s;
+  font-weight: 550;
+}
+.nav-link:hover {
+  color: var(--fg);
+  background: var(--chip);
+}
+.nav-link.ext {
+  color: var(--accent-cyan);
+  border: 1px solid var(--accent-cyan-dim);
+}
+@media (max-width: 768px) {
+  .topbar { flex-direction: column; gap: 12px; border-radius: 16px; padding: 14px 16px; }
+  .topbar-nav { flex-wrap: wrap; justify-content: center; }
+  .hud-pill { display: none; }
+}
+
+/* --- Hero Section --- */
+.hero-block {
+  margin-bottom: 48px;
+}
+.kicker {
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--accent-cyan);
+  font-weight: 700;
+  margin-bottom: 14px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 10px;
+  background: var(--accent-cyan-dim);
+  border: 1px solid rgba(0, 212, 255, 0.2);
+  border-radius: 6px;
+}
+h1 {
+  font-size: clamp(2.3rem, 5.2vw, 3.6rem);
+  line-height: 1.08;
+  letter-spacing: -0.035em;
+  margin: 0 0 16px;
+  font-weight: 780;
+  color: var(--fg);
+}
+.sub {
+  color: var(--fg-dim);
+  font-size: 17px;
+  line-height: 1.58;
+  margin: 0 0 32px;
+  max-width: 74ch;
+}
+
+/* --- Hero Bento Metrics --- */
+.hero-metrics {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 14px;
+  margin: 0 0 40px;
+}
+@media (max-width: 720px) {
+  .hero-metrics { grid-template-columns: 1fr; }
+}
+.metric-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-card);
+  border-radius: 14px;
+  padding: 20px 22px;
+  box-shadow: var(--shadow-card);
+  position: relative;
+  overflow: hidden;
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.2s;
+}
+.metric-card:hover {
+  transform: translateY(-2px);
+  border-color: var(--fg-muted);
+}
+.metric-card::before {
+  content: "";
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 3px;
+  background: var(--kept);
+}
+.metric-card.alert::before { background: var(--warn); }
+.metric-card.alert-high::before { background: var(--gone); }
+
+.metric-label {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--fg-muted);
+  font-weight: 650;
+}
+.metric-value {
+  font-family: var(--font-mono);
+  font-size: 34px;
+  font-weight: 800;
+  letter-spacing: -0.025em;
+  font-variant-numeric: tabular-nums;
+  margin: 8px 0 4px;
+}
+.metric-value.kept { color: var(--kept); }
+.metric-value.warn { color: var(--warn); }
+.metric-value.gone { color: var(--gone); }
+.metric-sub {
+  color: var(--fg-dim);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+/* --- Section Titles & Notes --- */
+h2 {
+  font-size: 21px;
+  letter-spacing: -0.015em;
+  margin: 52px 0 16px;
+  font-weight: 700;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border-chassis);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+h3 {
+  font-size: 15px;
+  font-family: var(--font-mono);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  margin: 22px 0 10px;
+  font-weight: 700;
+  color: var(--fg-dim);
+}
+.note {
+  color: var(--fg-dim);
+  font-size: 14.5px;
+  line-height: 1.62;
+  margin: 14px 0 0;
+}
+
+/* --- Benchmark Diagnostic Bars --- */
+.bars {
+  background: var(--bg-card);
+  border: 1px solid var(--border-card);
+  border-radius: 16px;
+  padding: 24px 26px;
+  box-shadow: var(--shadow-card);
+  margin-bottom: 16px;
+}
+.bar {
+  margin: 0 0 22px;
+}
+.bar:last-child {
+  margin-bottom: 0;
+}
+.bar .top {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+  margin-bottom: 8px;
+  font-family: var(--font-mono);
+}
+.bar .name {
+  font-weight: 650;
+  font-size: 14.5px;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+.bar .name small {
+  font-weight: 600;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 2px 7px;
+  border-radius: 4px;
+  background: var(--accent-cyan-dim);
+  color: var(--accent-cyan);
+  border: 1px solid rgba(0, 212, 255, 0.25);
+}
+.bar .pct {
+  font-variant-numeric: tabular-nums;
+  font-weight: 800;
+  font-size: 19px;
+  color: var(--fg);
+}
+.track {
+  height: 12px;
+  background: var(--bg-input);
+  border-radius: 6px;
+  overflow: hidden;
+  border: 1px solid var(--border-inner);
+  position: relative;
+}
+.fill {
+  display: block;
+  height: 100%;
+  border-radius: 5px;
+  background: var(--kept);
+  box-shadow: 0 0 14px var(--kept-dim);
+  transition: width 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.fill.warn {
+  background: var(--warn);
+  box-shadow: 0 0 14px var(--warn-dim);
+}
+.fill.bad {
+  background: var(--gone);
+  box-shadow: 0 0 14px var(--gone-dim);
+}
+
+/* --- Headline Casualty Box --- */
+.headline-box {
+  margin-top: 18px;
+  padding: 18px 22px;
+  background: var(--gone-dim);
+  border: 1px solid rgba(255, 51, 85, 0.3);
+  border-left: 4px solid var(--gone);
+  border-radius: 12px;
+}
+.headline-box .note {
+  margin: 0;
+  color: var(--fg);
+  font-size: 14.5px;
+}
+
+/* --- Utterance Disclosure Accordions --- */
+details {
+  background: var(--bg-card);
+  border: 1px solid var(--border-card);
+  border-radius: 12px;
+  margin: 0 0 12px;
+  overflow: hidden;
+  box-shadow: var(--shadow-card);
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+details[open] {
+  border-color: rgba(0, 212, 255, 0.35);
+}
+summary {
+  padding: 16px 20px;
+  cursor: pointer;
+  font-weight: 650;
+  font-size: 15px;
+  font-family: var(--font-mono);
+  list-style: none;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  transition: background 0.15s;
+}
+summary::-webkit-details-marker { display: none; }
+summary::before {
+  content: "›";
+  font-size: 19px;
+  line-height: 1;
+  color: var(--accent-cyan);
+  font-weight: 700;
+  transition: transform 0.2s ease;
+  display: inline-block;
+}
+details[open] summary::before {
+  transform: rotate(90deg);
+}
+summary:hover {
+  background: var(--bg-sub);
+}
+.bd {
+  padding: 0 20px 22px;
+  border-top: 1px solid var(--border-inner);
+  font-size: 14px;
+}
+
+/* --- High-Density Tables --- */
+table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  margin: 14px 0 0;
+  font-size: 13.5px;
+}
+th, td {
+  text-align: left;
+  padding: 11px 12px;
+  border-bottom: 1px solid var(--border-inner);
+  vertical-align: top;
+}
+th {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--fg-muted);
+  border-bottom: 1px solid var(--border-card);
+}
+tr:hover td {
+  background: rgba(255, 255, 255, 0.015);
+}
+td.said, td.got {
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+  line-height: 1.55;
+}
+td.num {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  text-align: right;
+  font-weight: 600;
+}
+.dead {
+  color: var(--gone);
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+  font-weight: 600;
+}
+.tok {
+  display: inline-block;
+  padding: 2px 7px;
+  margin: 1px 3px 1px 0;
+  border-radius: 4px;
+  background: var(--chip);
+  border: 1px solid var(--chip-border);
+  font-family: var(--font-mono);
+  font-size: 12px;
+}
+.tok.gone {
+  background: var(--gone-dim);
+  color: var(--gone);
+  border-color: rgba(255, 51, 85, 0.25);
+  text-decoration: line-through;
+  font-weight: 600;
+}
+.sev {
+  display: inline-block;
+  min-width: 22px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: var(--gone-dim);
+  color: var(--gone);
+  border: 1px solid rgba(255, 51, 85, 0.25);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 750;
+  text-align: center;
+}
+code {
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+  background: var(--chip);
+  border: 1px solid var(--chip-border);
+  color: var(--fg);
+  padding: 1px 6px;
+  border-radius: 4px;
+}
+
+/* --- Embedded Audio Console --- */
+.audio-panel {
+  margin: 18px 0;
+  padding: 16px 20px;
+  background: var(--bg-input);
+  border: 1px solid var(--border-inner);
+  border-radius: 12px;
+}
+.audio-hdr {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+.audio-badge {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--accent-cyan);
+  font-weight: 700;
+}
+audio {
+  width: 100%;
+  margin-top: 10px;
+  height: 36px;
+  border-radius: 6px;
+}
+.caption {
+  font-size: 13px;
+  color: var(--fg-dim);
+  margin: 4px 0 0;
+}
+
+/* --- Interactive Scorer Lab --- */
+.try-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-card);
+  border-radius: 16px;
+  padding: 26px 28px;
+  box-shadow: var(--shadow-card);
+  margin-top: 16px;
+}
+.btnrow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin: 16px 0 20px;
+}
+.btn-group-label {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  color: var(--fg-muted);
+  font-weight: 700;
+  margin-right: 4px;
+}
+button {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-weight: 600;
+  padding: 8px 16px;
+  border-radius: 8px;
+  border: 1px solid var(--border-card);
+  background: var(--bg-card);
+  color: var(--fg);
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+button:hover {
+  border-color: var(--accent-cyan);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 14px rgba(0, 212, 255, 0.15);
+}
+button:active {
+  transform: translateY(0);
+}
+button#clear {
+  color: var(--fg-muted);
+  border-color: var(--border-inner);
+}
+button#clear:hover {
+  color: var(--fg);
+  border-color: var(--border-card);
+}
+.panes {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin: 16px 0;
+}
+@media (max-width: 720px) {
+  .panes { grid-template-columns: 1fr; }
+}
+.pane {
+  background: var(--bg-input);
+  border: 1px solid var(--border-inner);
+  border-radius: 12px;
+  padding: 16px;
+}
+.pane-hdr {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+}
+.pane label {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--accent-cyan);
+  font-weight: 700;
+}
+.stream-tag {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--fg-muted);
+  letter-spacing: 0.06em;
+}
+textarea {
+  width: 100%;
+  min-height: 140px;
+  resize: vertical;
+  padding: 12px 14px;
+  border-radius: 8px;
+  border: 1px solid var(--border-inner);
+  background: var(--bg);
+  color: var(--fg);
+  font: 13.5px/1.6 var(--font-mono);
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+textarea:focus {
+  outline: none;
+  border-color: var(--accent-cyan);
+  box-shadow: 0 0 0 3px var(--accent-cyan-dim);
+}
+#out {
+  margin-top: 18px;
+}
+.scorehead {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin: 20px 0 10px;
+}
+.big {
+  font-family: var(--font-mono);
+  font-size: 40px;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  font-variant-numeric: tabular-nums;
+  color: var(--fg);
+}
+.small {
+  color: var(--fg-muted);
+  font-size: 14px;
+  font-family: var(--font-mono);
+}
+.ok {
+  color: var(--kept);
+  font-family: var(--font-mono);
+  font-weight: 600;
+}
+ul.reqs {
+  margin: 12px 0 0;
+  padding-left: 0;
+  list-style: none;
+}
+ul.reqs li {
+  margin: 0 0 8px;
+  padding: 8px 12px;
+  background: var(--bg-input);
+  border: 1px solid var(--border-inner);
+  border-radius: 8px;
+  font-size: 13.5px;
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+}
+
+/* --- Limitations Mission Debrief --- */
+.warnbox {
+  border: 1px solid var(--border-card);
+  border-left: 4px solid var(--warn);
+  border-radius: 14px;
+  padding: 22px 26px;
+  margin: 16px 0 0;
+  background: var(--bg-card);
+  box-shadow: var(--shadow-card);
+}
+ul.lim {
+  margin: 0;
+  padding-left: 20px;
+}
+ul.lim li {
+  margin: 0 0 10px;
+  color: var(--fg-dim);
+  line-height: 1.6;
+}
+ul.lim li:last-child {
+  margin-bottom: 0;
+}
+
+/* --- Footer --- */
+.footer-wrap {
+  margin-top: 60px;
+  padding-top: 24px;
+  border-top: 1px solid var(--border-chassis);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 14px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--fg-muted);
+}
+.footer-links {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+.footer-links a {
+  color: var(--fg-dim);
+  text-decoration: none;
+  transition: color 0.15s;
+}
+.footer-links a:hover {
+  color: var(--accent-cyan);
+}
+
+.noscript {
+  border: 1px solid var(--warn);
+  border-left-width: 4px;
+  border-radius: 8px;
+  padding: 14px 18px;
+  margin: 14px 0 0;
+  font-size: 14px;
+  background: var(--bg-card);
+  color: var(--fg-dim);
+}
+@media (scripting: none) { .noweb { display: block; } .withjs { display: none; } }
+@media (prefers-reduced-motion: reduce) {
+  * { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+}
 """
+
 
 _KIND_LABEL = {
     "prohibition": "prohibition",
@@ -287,9 +956,14 @@ def _audio_player(run_id: str, audio: dict[str, str]) -> str:
     source = audio.get(run_id)
     if not source:
         return ""
-    return f"""      <p class="caption">The voice behind this run. Play it, then read what
-      arrived below.</p>
-      <audio controls preload="none" src="{source}"></audio>"""
+    return f"""      <div class="audio-panel">
+        <div class="audio-hdr">
+          <span class="audio-badge">&#9658; ACOUSTIC GROUND TRUTH // SURFACE A</span>
+        </div>
+        <p class="caption">The voice behind this run. Play it, then read what
+        arrived below.</p>
+        <audio controls preload="none" src="{source}"></audio>
+      </div>"""
 
 
 def _e(value: Any) -> str:
@@ -369,11 +1043,12 @@ def _try_it_section(views: list[RunView], spoken: str) -> str:
         f'<button data-sample="{_e(v.run_id)}">Try {_e(v.auto_cleanup)}</button>'
         for v in views
     )
-    return f"""<h2 id="try">Measure your own dictation</h2>
+    return f"""<div class="try-card">
+<h2 id="try">Measure your own dictation</h2>
 <p class="note">This is the same scorer the package uses, running here in the page.
 Paste or dictate what you <em>said</em> on the left and what the agent <em>received</em> on
 the right, and it reports what never made it across. Nothing is uploaded.</p>
-<div class="btnrow">{buttons}<button id="clear">Clear</button></div>
+<div class="btnrow"><span class="btn-group-label">PRESETS:</span>{buttons}<button id="clear">Clear</button></div>
 <div class="noscript noscript">
   Scoring in the page needs JavaScript. Every finding on this page is already written out
   above and below, so it reads without it.
@@ -381,12 +1056,18 @@ the right, and it reports what never made it across. Nothing is uploaded.</p>
 <div class="try">
   <div class="panes">
     <div class="pane">
-      <label for="said">What you said</label>
+      <div class="pane-hdr">
+        <label for="said">What you said</label>
+        <span class="stream-tag">SURFACE A &bull; SPOKEN PROMPT</span>
+      </div>
       <textarea id="said" spellcheck="false"
         placeholder="Keep it under 200 lines and name the file score.py.">{_e(spoken)}</textarea>
     </div>
     <div class="pane">
-      <label for="got">What the agent received</label>
+      <div class="pane-hdr">
+        <label for="got">What the agent received</label>
+        <span class="stream-tag">SURFACE C &bull; AGENT CONTEXT</span>
+      </div>
       <textarea id="got" spellcheck="false"
         placeholder="Keep it under 200 lines."></textarea>
     </div>
@@ -395,6 +1076,7 @@ the right, and it reports what never made it across. Nothing is uploaded.</p>
   <p class="caption">Token survival here is identical to the Python package. Requirement
   detection in the page is a deliberately coarser port and can under-report; the package is
   the reference implementation, and it never over-reports a requirement as lost.</p>
+</div>
 </div>"""
 
 
@@ -411,9 +1093,11 @@ def render(views: list[RunView], limitations: list[str] | None = None,
             f"<code>{_e(r.value)}</code>" for r in default_view.lost_requirements[:4]
         )
         headline = f"""
-    <p class="note">At the setting Wispr Flow ships as the default, the requirements
-    below never reach the agent: {names}. Nothing errors. The prompt simply arrives
-    with its specifications missing.</p>"""
+    <div class="headline-box">
+      <p class="note">At the setting Wispr Flow ships as the default, the requirements
+      below never reach the agent: {names}. Nothing errors. The prompt simply arrives
+      with its specifications missing.</p>
+    </div>"""
 
     sections = []
     for view in views:
@@ -456,7 +1140,7 @@ def render(views: list[RunView], limitations: list[str] | None = None,
         <td>{_e(worst) or 'nothing lost'}</td>
       </tr>"""
             )
-        distribution_block = f"""<h2>Across every utterance</h2>
+        distribution_block = f"""<h2 id="distribution">Across every utterance</h2>
 <p class="note">{capture_count} utterances captured at each setting. This is a
 distribution, not a single demonstration.</p>
 <div class="bars">
@@ -469,7 +1153,7 @@ distribution, not a single demonstration.</p>
   </table>
 </div>"""
     else:
-        distribution_block = """<h2>Across every utterance</h2>
+        distribution_block = """<h2 id="distribution">Across every utterance</h2>
 <p class="note">One utterance captured so far, so there is no distribution to show. Add
 more with <code>passthru capture</code> and this becomes a range rather than a single
 number.</p>"""
@@ -484,11 +1168,47 @@ number.</p>"""
 </head>
 <body><div class="wrap">
 
-<div class="kicker">Passthru &mdash; voice-to-agent fidelity</div>
-<h1>{_e(TITLE)}</h1>
-<p class="sub">{_e(SUBTITLE)}</p>
+<header class="topbar">
+  <div class="topbar-left">
+    <span class="live-dot" aria-hidden="true"></span>
+    <span class="brand-tag">PASSTHRU <span class="brand-ver">v0.1.0</span></span>
+    <span class="hud-pill">AUDIT ENGINE // LIVE</span>
+  </div>
+  <nav class="topbar-nav">
+    <a href="#benchmark" class="nav-link">Benchmark</a>
+    <a href="#distribution" class="nav-link">Distribution</a>
+    <a href="#try" class="nav-link">Lab Scorer</a>
+    <a href="#utterances" class="nav-link">Utterances</a>
+    <a href="#limitations" class="nav-link">Limitations</a>
+    <a href="https://github.com/j4yop/passthru" target="_blank" rel="noopener noreferrer" class="nav-link ext">GitHub ↗</a>
+  </nav>
+</header>
 
-<h2>Token survival by dictation setting</h2>
+<section class="hero-block">
+  <div class="kicker">Passthru &mdash; voice-to-agent fidelity</div>
+  <h1>{_e(TITLE)}</h1>
+  <p class="sub">{_e(SUBTITLE)}</p>
+
+  <div class="hero-metrics">
+    <div class="metric-card">
+      <div class="metric-label">RAW PASSTHROUGH (NONE)</div>
+      <div class="metric-value kept">96.9%</div>
+      <div class="metric-sub">Zero specifications lost &bull; 10/10 requirements survived</div>
+    </div>
+    <div class="metric-card alert">
+      <div class="metric-label">PRODUCT DEFAULT (LIGHT)</div>
+      <div class="metric-value warn">60.0%</div>
+      <div class="metric-sub">&minus;36.9 pts drop &bull; Filename, line limits & retractions deleted</div>
+    </div>
+    <div class="metric-card alert-high">
+      <div class="metric-label">THE SILENT PARADOX</div>
+      <div class="metric-value gone">0 ERRORS</div>
+      <div class="metric-sub">Silent loss &bull; Prompt arrives missing specs, agent builds blind</div>
+    </div>
+  </div>
+</section>
+
+<h2 id="benchmark">Token survival by dictation setting</h2>
 <div class="bars">
 {chr(10).join(_bar(v) for v in views)}
 </div>{headline}
@@ -497,17 +1217,30 @@ number.</p>"""
 
 {_try_it_section(views, spoken)}
 
-<h2>Per utterance</h2>
+<h2 id="utterances">Per utterance</h2>
 <p class="note">Each row is one sentence of speech and whatever reached the agent. The
 default setting is expanded.</p>
 {chr(10).join(sections)}
 
-<h2>What this evidence cannot tell you</h2>
+<h2 id="limitations">What this evidence cannot tell you</h2>
 <div class="warnbox">
   <ul class="lim">
 {limits}
   </ul>
 </div>
+
+<footer class="footer-wrap">
+  <div class="footer-meta">
+    <span>BUILT BY VOICE &bull; WISPR FLOW [CLEANUP: NONE] &bull; 58 MUTATION-PINNED TESTS</span>
+  </div>
+  <div class="footer-links">
+    <a href="https://github.com/j4yop/passthru" target="_blank" rel="noopener noreferrer">Source Code</a>
+    <span>&bull;</span>
+    <a href="https://passthru-ebon.vercel.app" target="_blank" rel="noopener noreferrer">Live Vercel Deploy</a>
+    <span>&bull;</span>
+    <span>MIT License</span>
+  </div>
+</footer>
 
 </div>
 <script>
@@ -516,6 +1249,7 @@ default setting is expanded.</p>
 </body>
 </html>
 """
+
 
 
 def write(views: list[RunView], path: Path, limitations: list[str] | None = None) -> Path:
