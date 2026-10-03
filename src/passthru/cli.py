@@ -102,8 +102,8 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--audio-dir",
         type=Path,
-        default=Path("docs/audio"),
-        help="folder of <run-id>.mp3 clips to embed (default: docs/audio)",
+        default=Path("audio"),
+        help="folder of <run-id>.mp3 clips to embed (default: audio)",
     )
     parser.add_argument(
         "--advice",
