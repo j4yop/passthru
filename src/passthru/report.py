@@ -1034,6 +1034,31 @@ def _requirements(view: RunView) -> str:
     return "\n".join(items)
 
 
+def _spread(views: list[RunView], setting: str) -> str:
+    """The headline figure for a setting: how far apart its runs ended up.
+
+    A single percentage here would be a lie for the rewrite settings. Their averages sit
+    near raw passthrough while their worst runs are catastrophic, and the spread is the
+    thing that predicts which run you will get.
+    """
+    ratios = [v.ratio * 100 for v in views if v.auto_cleanup == setting]
+    if not ratios:
+        return "n/a"
+    return f"{max(ratios) - min(ratios):.1f} pt spread"
+
+
+def _spread_sub(views: list[RunView], setting: str) -> str:
+    ratios = [v.ratio * 100 for v in views if v.auto_cleanup == setting]
+    if not ratios:
+        return "no runs at this setting"
+    # A literal separator, not an HTML entity: this string is escaped before it is
+    # interpolated, so an entity here would reach the page as "&amp;bull;".
+    return (
+        f"{len(ratios)} runs \u00b7 worst {min(ratios):.1f}% \u00b7 "
+        f"best {max(ratios):.1f}%"
+    )
+
+
 def _sample_key(view: RunView) -> str:
     """A key unique to one capture and setting.
 
@@ -1236,18 +1261,19 @@ number.</p>"""
   <div class="hero-metrics">
     <div class="metric-card">
       <div class="metric-label">RAW PASSTHROUGH (NONE)</div>
-      <div class="metric-value kept">96.9%</div>
-      <div class="metric-sub">Zero specifications lost &bull; 10/10 requirements survived</div>
+      <div class="metric-value kept">{_e(_spread(views, 'None'))}</div>
+      <div class="metric-sub">{_e(_spread_sub(views, 'None'))}</div>
     </div>
     <div class="metric-card alert">
       <div class="metric-label">PRODUCT DEFAULT (LIGHT)</div>
-      <div class="metric-value warn">60.0%</div>
-      <div class="metric-sub">&minus;36.9 pts drop &bull; Filename, line limits & retractions deleted</div>
+      <div class="metric-value warn">{_e(_spread(views, 'Light'))}</div>
+      <div class="metric-sub">{_e(_spread_sub(views, 'Light'))}</div>
     </div>
     <div class="metric-card alert-high">
-      <div class="metric-label">THE SILENT PARADOX</div>
+      <div class="metric-label">THE SILENT FAILURE</div>
       <div class="metric-value gone">0 ERRORS</div>
-      <div class="metric-sub">Silent loss &bull; Prompt arrives missing specs, agent builds blind</div>
+      <div class="metric-sub">Nothing raised · on u1 both rewrite settings turned
+        <code>no pytest</code> into <code>not pytest</code></div>
     </div>
   </div>
 </section>
