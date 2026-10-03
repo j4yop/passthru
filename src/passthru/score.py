@@ -27,7 +27,7 @@ import difflib
 import re
 from typing import NamedTuple
 
-_TOKEN = re.compile(r"[A-Za-z0-9_.]+")
+TOKEN_PATTERN = re.compile(r"[A-Za-z0-9_.]+")
 # Trailing `.` and `_` are sentence punctuation, not part of a name: `score.py.` is the
 # filename `score.py` followed by a full stop, and treating them as different tokens
 # reports a filename as lost when it survived. Leading dots are kept, because `.env`
@@ -60,10 +60,32 @@ def tokenize(text: str, strip: tuple[str, ...] = DEFAULT_STRIP) -> list[str]:
 
     `strip` holds phrases to remove before tokenising, used to drop capture markers.
     """
+    return [token for token, _, _ in tokenize_spans(text, strip)]
+
+
+def tokenize_spans(
+    text: str, strip: tuple[str, ...] = DEFAULT_STRIP
+) -> list[tuple[str, int, int]]:
+    """Like `tokenize`, but each token carries its span in the stripped text.
+
+    Alignment needs the spans so it can slice readable text out of the received side
+    instead of reassembling it from tokens, which would lose punctuation and spacing.
+    """
     cleaned = text or ""
     for phrase in strip:
         cleaned = re.sub(re.escape(phrase), " ", cleaned, flags=re.IGNORECASE)
-    return [t.strip(_TRAILING) for t in _TOKEN.findall(cleaned.lower()) if t.strip(_TRAILING)]
+    spans: list[tuple[str, int, int]] = []
+    for match in TOKEN_PATTERN.finditer(cleaned):
+        token = match.group().lower().strip(_TRAILING)
+        if not token:
+            continue
+        # Re-derive offsets after stripping, so callers slice the right text.
+        start, end = match.span()
+        trimmed = match.group().strip(_TRAILING)
+        start += len(match.group()) - len(trimmed)
+        end = start + len(trimmed)
+        spans.append((token, start, end))
+    return spans
 
 
 def score_stage(before: str, after: str, strip: tuple[str, ...] = DEFAULT_STRIP) -> Survival:
