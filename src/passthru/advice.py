@@ -20,9 +20,11 @@ generated sentence contains the word. The constraint is enforced, not just docum
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass, field
 from typing import Iterable
 
+from .constraints import Requirement
 from .report import RunView
 
 # The only knob this corpus can speak to. Adding another means adding evidence for it,
@@ -30,6 +32,26 @@ from .report import RunView
 AUTO_CLEANUP = "auto_cleanup"
 
 _PROHIBITED_CLAIMS = ("accuracy", "accurate", "correctness", "smarter", "better output")
+
+# Only these kinds change what an agent actually does when they go missing. A number is
+# excluded on purpose: the scorer compares literal text, so "99" arriving as "ninety nine"
+# is counted as a loss even though the instruction is intact. Recommending a setting change
+# to recover a number word would be advice manufactured from the measurement's own noise.
+ACTIONABLE = frozenset({"filename", "prohibition", "keep", "choice"})
+_NUMERIC = re.compile(r"^\d+(?:[.,]\d+)*$")
+
+
+def is_actionable(requirement: Requirement) -> bool:
+    """Whether losing this requirement is something a setting change could honestly fix.
+
+    A numeric choice is excluded even though `choice` is otherwise actionable: "0.7, not
+    0.5" arriving as "0.7, not zero point five" keeps its meaning, and the scorer counts it
+    as a loss only because it compares literal text. That is the measurement's noise, not
+    damage, and recommending a setting change over it would be manufacturing advice.
+    """
+    if requirement.kind not in ACTIONABLE:
+        return False
+    return not _NUMERIC.match(requirement.value.strip())
 
 
 @dataclass
@@ -61,67 +83,108 @@ class Advice:
 
 
 def _retained_elsewhere(views: Iterable[RunView], view: RunView) -> tuple[RunView, list[str]]:
-    """Find a run at a different setting that kept what `view` lost."""
+    """Find a sibling run, same utterance, that kept what `view` lost.
+
+    The witness must be another run of the **same utterance** at a different setting. A
+    run from a different utterance is not evidence: if that utterance never mentioned a
+    token, its silence says nothing about whether the token survives. Comparing across
+    utterances produced recommendations to change settings in order to recover tokens that
+    the other run never contained, which is the precise failure this tool exists to catch.
+    """
     lost = {r.value.lower() for r in view.lost_requirements}
     if not lost:
         raise ValueError("no lost requirements to explain")
 
-    for other in views:
-        if other.run_id == view.run_id:
-            continue
+    siblings = [
+        v
+        for v in views
+        if v.capture == view.capture and v.auto_cleanup != view.auto_cleanup
+    ]
+    if not siblings:
+        raise LookupError("no sibling run of the same utterance to compare against")
+
+    for other in siblings:
         if other.auto_cleanup == view.auto_cleanup:
             continue
         kept = {r.value.lower() for r in other.lost_requirements}
         recovered = sorted(lost - kept)
         if recovered == sorted(lost):
             return other, recovered
-    # No single run explains it fully, but a partial explanation is still evidence.
-    for other in views:
-        if other.run_id == view.run_id or other.auto_cleanup == view.auto_cleanup:
-            continue
+
+    # No single sibling explains it fully, but a partial explanation is still evidence.
+    for other in siblings:
         kept = {r.value.lower() for r in other.lost_requirements}
         recovered = sorted(lost - kept)
         if recovered:
             return other, recovered
-    raise LookupError("no other run retained the lost tokens")
+
+    raise LookupError("no sibling run of the same utterance retained the lost tokens")
 
 
 def advise(views: list[RunView]) -> list[Advice]:
     """Return one Advice per run, in the order given.
 
-    Never raises for a run with nothing lost; returns a refusal with a reason.
+    Two rules keep this from inventing conclusions:
+
+    - Only *actionable* requirement kinds count. The scorer compares literal text, so a
+      number arriving as words is counted as a loss although the instruction is intact.
+      Recommending a setting change over that would be advice made from noise.
+    - A witness must be another run of the **same utterance**. A different utterance's
+      silence about a token is not evidence that the token survives.
+
+    Never raises. A run with nothing actionable returns a refusal with a reason.
     """
+    filtered = [v._replace_lost([r for r in v.lost_requirements if is_actionable(r)])
+                for v in views]
     out: list[Advice] = []
 
-    for view in views:
+    for original, view in zip(views, filtered):
         if not view.lost_requirements:
-            out.append(
-                Advice(
-                    run_id=view.run_id,
-                    auto_cleanup=view.auto_cleanup,
-                    reason=(
-                        "Nothing was lost at this setting, so there is no evidence that "
-                        "any setting change would help. Changing it would be a guess."
-                    ),
-                    evidence=f"{view.ratio * 100:.1f}% of tokens and all requirements survived.",
+            if original.lost_requirements:
+                # Losses exist, but none that a setting could honestly fix.
+                out.append(
+                    Advice(
+                        run_id=view.run_id,
+                        auto_cleanup=view.auto_cleanup,
+                        reason=(
+                            "Only numbers and bare terms were lost, which on this corpus "
+                            "reflects how the scorer compares text rather than damage to "
+                            "the instruction. No setting change is recommended."
+                        ),
+                        evidence=(
+                            f"{original.ratio * 100:.1f}% of tokens survived; "
+                            "losses were numeric or lexical only."
+                        ),
+                    )
                 )
-            )
+            else:
+                out.append(
+                    Advice(
+                        run_id=view.run_id,
+                        auto_cleanup=view.auto_cleanup,
+                        reason=(
+                            "Nothing was lost at this setting, so there is no evidence "
+                            "that any setting change would help. Changing it would be a guess."
+                        ),
+                        evidence=f"{view.ratio * 100:.1f}% of tokens and all requirements survived.",
+                    )
+                )
             continue
 
         try:
-            witness, recovered = _retained_elsewhere(views, view)
+            witness, recovered = _retained_elsewhere(filtered, view)
         except (LookupError, ValueError):
             out.append(
                 Advice(
                     run_id=view.run_id,
                     auto_cleanup=view.auto_cleanup,
                     reason=(
-                        "Tokens were lost, but no other captured setting retained them, "
-                        "so the cause is not identifiable from this evidence. It could be "
-                        "the recogniser rather than the cleanup. No setting change is "
-                        "recommended on this evidence."
+                        "Requirements were lost, but no other setting for this same "
+                        "utterance retained them, so the cause is not identifiable from "
+                        "this evidence. It could be the recogniser rather than the "
+                        "cleanup, and no setting change is recommended on it."
                     ),
-                    evidence="no comparison run retained these requirements",
+                    evidence="no sibling run of the same utterance retained these requirements",
                 )
             )
             continue
@@ -138,8 +201,9 @@ def advise(views: list[RunView]) -> list[Advice]:
                     f"lost here, so the cleanup level is the difference between them."
                 ),
                 evidence=(
-                    f"{view.auto_cleanup} lost {len(view.lost_requirements)} requirements; "
-                    f"{witness.auto_cleanup} lost {len(witness.lost_requirements)}."
+                    f"{view.auto_cleanup} lost {len(view.lost_requirements)} actionable "
+                    f"requirements; {witness.auto_cleanup} lost "
+                    f"{len(witness.lost_requirements)}."
                 ),
                 would_recover=recovered,
             )

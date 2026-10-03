@@ -51,23 +51,37 @@ def load_corpus(path: Path) -> dict[str, Any]:
     if not isinstance(corpus, dict):
         raise InputError(f"{path} must contain a JSON object, found {type(corpus).__name__}")
 
+    # Version 2 is a list of captures, each with its own spoken text and runs.
+    # Version 1 is a single spoken_ground_truth over a flat run list. Both are accepted.
+    captures = corpus.get("captures")
+    if isinstance(captures, list) and captures:
+        for index, capture in enumerate(captures):
+            if not isinstance(capture, dict):
+                raise InputError(f"{path} capture {index} is not an object")
+            label = capture.get("id", index)
+            if not isinstance(capture.get("spoken"), str) or not capture["spoken"].strip():
+                raise InputError(f"{path} capture {label!r} has no spoken text to score against")
+            _check_runs(path, capture.get("runs"), f"capture {label!r}")
+        return corpus
+
     spoken = corpus.get("spoken_ground_truth")
     if not isinstance(spoken, str) or not spoken.strip():
         raise InputError(f"{path} has no spoken_ground_truth to score against")
+    _check_runs(path, corpus.get("runs"), "corpus")
+    return corpus
 
-    runs = corpus.get("runs")
+
+def _check_runs(path: Path, runs: Any, where: str) -> None:
     if not isinstance(runs, list) or not runs:
-        raise InputError(f"{path} has no runs to report on")
-
+        raise InputError(f"{path} has no runs to report on in {where}")
     for index, run in enumerate(runs):
         if not isinstance(run, dict):
-            raise InputError(f"{path} run {index} is not an object")
-        for field in ("id", "auto_cleanup", "received"):
+            raise InputError(f"{path} run {index} in {where} is not an object")
+        for field in ("auto_cleanup", "received"):
             if not isinstance(run.get(field), str) or not run[field].strip():
                 raise InputError(
-                    f"{path} run {run.get('id', index)!r} is missing a {field} field"
+                    f"{path} run {run.get('id', index)!r} in {where} is missing a {field} field"
                 )
-    return corpus
 
 
 def write_atomic(path: Path, html: str) -> Path:

@@ -827,6 +827,20 @@ class RunView:
     spoken_text: str = ""
     """The ground truth for this capture, needed to score it outside a paired view."""
 
+    def _replace_lost(self, requirements: list) -> "RunView":
+        """A copy carrying a filtered loss list, for advice that ignores some kinds."""
+        clone = RunView(
+            run_id=self.run_id, auto_cleanup=self.auto_cleanup, label=self.label,
+            ratio=self.ratio, spoken=self.spoken, pairs=self.pairs,
+            lost_requirements=list(requirements), is_default=self.is_default,
+            capture=self.capture, spoken_text=self.spoken_text,
+        )
+        return clone
+
+    def pairs_text(self) -> str:
+        """Everything that arrived for this run, joined."""
+        return "\n".join(p.received for p in self.pairs)
+
     @property
     def tone(self) -> str:
         if self.ratio >= 0.9:
