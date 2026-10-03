@@ -11,28 +11,28 @@ which is why the run counts per setting are uneven.
 
 | Capture | Spoken | None | Light | Medium | Dictionary |
 |---|---|---|---|---|---|
-| `u1` | 83 | **90.4%** | 63.9% | 59.0% | off |
-| `u2` | 58 | 94.8% | 86.2% | 87.9% | off |
-| `u3` | 41 | 95.1% | 95.1% | — | off |
-| `u3d` | 41 | 95.1% | — | 87.8% | **on** |
+| `u1` | 83 | **95.2%** | 65.1% | 59.0% | off |
+| `u2` | 58 | 96.6% | 86.2% | 87.9% | off |
+| `u3` | 41 | 97.6% | 97.6% | — | off |
+| `u3d` | 41 | 100.0% | — | 92.7% | **on** |
 | `u4` | 41 | 97.6% | 100.0% | 100.0% | off |
-| `u5` | 45 | 95.6% | 97.8% | 97.8% | off |
+| `u5` | 45 | 100.0% | 100.0% | 100.0% | off |
 
 ## The headline: spread, not averages
 
 | Auto Cleanup | runs | worst | median | best | spread |
 |---|---|---|---|---|---|
-| None | 6 | 90.4% | 95.1% | 97.6% | **7.2** |
-| Light (product default) | 5 | 63.9% | 95.1% | 100.0% | **36.1** |
-| Medium | 5 | 59.0% | 87.9% | 100.0% | **41.0** |
+| None | 6 | 95.2% | 97.6% | 100.0% | **4.8** |
+| Light (product default) | 5 | 65.1% | 97.6% | 100.0% | **34.9** |
+| Medium | 5 | 59.0% | 92.7% | 100.0% | **41.0** |
 
 Averages hide the result. Light and Medium have medians close to None's, which makes a mean
 look like "cleanup costs a little". It does not. Each of them also produced a run that lost
 more than a third of the text, and the tool cannot tell you in advance which run that will be.
 None never fell below 90%.
 
-Medium scored *above* None on `u5`. That is reported rather than dropped, because it is what
-makes "cleanup is bad for you" unsupportable as a general claim.
+Medium tied None at a clean 100% on both `u4` and `u5`. That is reported rather than dropped,
+because it is what makes "cleanup is bad for you" unsupportable as a general claim.
 
 ## An inversion, not a loss
 
@@ -47,23 +47,54 @@ substitution of a different one, and nothing in the agent's input indicates a pr
 occurred. Raw passthrough delivered `no pytest` correctly in both `u1` and `u4`, the two
 utterances where the prohibition appeared.
 
-A tool reporting only percentages scores this run at 63.9% and moves on.
+A tool reporting only percentages scores this run at 65.1% and moves on.
 
-## The recogniser does damage no setting controls
+## Two faults in the scorer, found by re-reading the corpus
 
-Across every run at every setting, identifiers arrived with their underscores escaped:
+The first version of this project reported escaped identifiers as lost filenames. It was
+wrong, and it was wrong in a way that flattered the tool's own thesis.
+
+Across every run at every setting, identifiers arrived escaped:
 
 - `test\_score.py`
 - `customer\_id`
 - `created\_at`
 - `payment\_utils.py`
+- and, in `u3d` at Medium, `\`customer\_id\`` with the code-span backticks escaped too
 
-This appears in the **None** runs too, so it is not produced by cleanup. It is upstream of
-it. Turning Dictionary on partially repaired `customer ID` into `customer\_id` and could not
-remove the backslash.
+None of that is damage. It is markdown quoting, and the agent reads all of it identically to
+the unescaped form. Scoring it as a loss made the recogniser look like it was corrupting
+filenames when it was writing them, and it did so at *every* setting including raw passthrough,
+which is the observation that should have made the claim suspicious immediately: a cause that
+is present in the run where the theory says there is no rewriting at all is not the cause.
 
-It is not modelled in the scorer. It is reported here by inspection, which is why limitation 5
-below exists.
+The same applies to numbers spelled out. `ninety nine` still says 99. Those were scored as
+losses too, and worse: `99` against `ninety nine` was two tokens against one, so the
+comparison could not succeed at any setting and a version constraint scored as a total loss.
+
+Both are fixed. `u5` went from 95.6 / 97.8 / 97.8 to **100.0 / 100.0 / 100.0**, and the
+escaped identifiers stopped appearing as losses anywhere. The figures above are the corrected
+ones.
+
+### The cases that really are losses
+
+Not everything reduces to quoting, and the distinction is worth keeping:
+
+- `240 pixels` arriving as `240px` — **survived.** The value is intact.
+- `8 pixels` arriving as `8px` — **survived.**
+- `1rem` arriving as `one rem` — **lost.** A literal became prose the agent has to re-parse.
+- `sidebar` dropped from `u2` at Light — **lost.** The word is gone.
+
+## The capture marker is corrupted too
+
+Each capture ends by speaking the marker `end utterance`. It arrives as `end utterance` in
+six runs, as `and utterance` in four, and as a bare `utterance` in three. The strip list only
+handled the intact form, so in the other seven the scaffolding leaked into the measurement.
+
+That is a small thing and it is also the clearest example in the corpus of a failure mode
+nobody checks for: the harness is made of the same speech as the experiment, so anything the
+pipeline mangles, it mangles in the scaffolding too. The remnants were stripped from the
+stored text with the reason recorded, rather than left in the numbers.
 
 ## What died, per utterance
 
@@ -87,18 +118,19 @@ Do not let anyone quote these numbers without them.
    and disagreed with Wispr in both directions: it heard `deflib` where Wispr heard `difflib`
    correctly, and `lavasting` where Wispr wrote `levstein`. Neither is treated as ground truth.
 
-3. **The scorer does not normalise spoken number words.** `99` arriving as `ninety nine` is
-   counted as a loss though the meaning is intact, and `0.5` as `zero point five`. This adds
-   noise to **every** figure above, including the ones quoted as wins. It is the main reason
-   the advice module declines to recommend a setting change anywhere in this corpus: after
-   excluding numeric requirements, nothing is left that a setting change could honestly fix.
+3. **Number folding is a judgement call, and it cuts both ways.** A bare unit word that is
+   also a number word is folded, so `one file` becomes `1 file`. Both sides fold identically so
+   nothing is lost, but the token count is not the raw count of what was said. A run broken by
+   a non-number word is left alone, which protects the version string `two point none` at the
+   cost of missing a decimal that really was spelled out.
 
 4. **Pace was not matched across passes.** Reading speed was not held constant. This is the
    most likely confound and it is uncontrolled.
 
-5. **Backslash escaping is reported by inspection, not modelled.** Four identifiers are
-   affected. The scorer has no rule for it, so those losses show up as ordinary missing
-   tokens.
+5. **Escaping is undone everywhere, not only outside code spans.** Escaped backticks make a
+   code span impossible to detect reliably, so the scorer undoes backslashes everywhere. The
+   cost is that a backslash a reader would actually see, inside a code span, is scored as
+   having survived.
 
 6. **These are not random utterances.** They are technical instructions written by the author
    and read aloud, deliberately dense with filenames, numerals, and prohibitions. Real

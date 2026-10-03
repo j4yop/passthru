@@ -138,7 +138,7 @@ most.
 
 **The finding inverted.** One utterance made cleanup look catastrophic and raw passthrough
 look perfect. Five showed that Medium *beat* raw passthrough on `u5`, and that the real story
-is variance: None spans 7.2 points, Light 36.1, Medium 41.0. The README and report were
+is variance: None spans 4.8 points, Light 34.9, Medium 41.0. The README and report were
 rewritten around spread rather than averages, and "cleanup costs you 35% of your tokens" —
 a claim that was true of one utterance and false as a general statement — is gone.
 
@@ -170,6 +170,42 @@ Tests written against the first utterance were rewritten rather than deleted, be
 had encoded the wrong belief. "Raw passthrough is never the worst" is false — `u5` disproves
 it — and it now says so while asserting the thing that *is* true, that raw passthrough has a
 floor and neither rewrite setting does.
+
+## The scorer was wrong, and the fix moved every number
+
+Two things the corpus had been reporting as *losses* were faults in this tool.
+
+**Markdown escaping was scored as damage.** Every run at every setting delivered `test\_score.py`
+rather than `test_score.py`. The first version called that a lost filename, which made the
+recogniser look like it was corrupting identifiers when it was quoting them, and it did so at
+raw passthrough too, which is the observation that should have killed the claim on sight: a
+cause present where the theory says nothing was rewritten is not the cause. Undoing escapes
+and stripping code-span backticks moved `u5` from 95.6 / 97.8 / 97.8 to a clean 100.0 across
+all three settings.
+
+**Spelled-out numbers were scored as losses, and worse than losses.** `99` against `ninety
+nine` is two tokens against one, so the comparison could not succeed at any setting and a
+version constraint scored as a total loss. Folding number words fixed it.
+
+Both had to preserve character offsets, because `align` slices the delivered text by span to
+show what arrived. My first attempt rewrote the token text and kept the raw span, which quoted
+the escaping backslash as part of the filename and pulled a sentence's full stop into the
+token it followed. The span now tracks which raw characters actually survived.
+
+Two more faults surfaced only because the fixes were made:
+
+- `constraints.py` had its own tokenizer. It learned neither fix, so `u5` reported 100% token
+  survival directly above a requirement list saying the filename was lost. It now imports the
+  scorer's, so the two cannot drift apart again.
+- Requirement matching tested substring against the raw delivered string, which reads the text
+  before escaping is undone. It now tests the token bag, and a number that only lost its unit
+  abbreviation counts as survived, because `240px` still says 240.
+
+**The capture marker is corrupted by dictation too.** `end utterance` arrived as `and
+utterance` in four runs and as a bare `utterance` in three, so the strip list missed it and
+scaffolding leaked into the numbers. Worth recording for the harness-as-experiment reason: the
+apparatus is made of the same speech as the experiment, so anything the pipeline mangles, it
+mangles in the scaffolding too.
 
 **Not dictated:** `capture.py`, the test suite, `browser.js`, `scripts/check-parity.mjs`,
 the audit, and the rewritten README and this file. That is a large share of the repository.
@@ -226,5 +262,21 @@ would have stayed green. They are enforced now.
 **Dead code removed:** `advice.to_dict` had no callers. `fixtures/spoken_01.txt` was tracked
 by git and referenced by nothing.
 
-Result at that point: 45 tests, every mutation caught. Each test pins a defect that actually occurred rather than a hypothetical one,
+Result at that point: 45 tests, every mutation caught.
+
+The mutation harness is now `scripts/mutation.py`, committed and rerunnable rather than
+something that happened once in a terminal. Writing it surfaced two faults in the harness
+itself, both of which would have produced a confident wrong answer:
+
+- It restored each source file in a `finally` inside the loop body, so the restore fired
+  before the tests ran and every mutation reported as a survivor. 0 of 13 caught, and the
+  summary looked entirely reasonable.
+- An earlier version matched patterns loosely and silently failed to apply 12 of 14 of
+  them, leaving four source files mutated on disk while printing a result. The version that
+  replaced it uses exact string pairs, refuses to continue if one is not found, and verifies
+  against `git diff` that the sources came back.
+
+Both are the same mistake the project is about: reporting a measurement that was never
+taken. Current result: **13 of 13 caught**, including the escapes, the number folding, the
+span arithmetic, the shared tokenizer, and the advice witness rule. Each test pins a defect that actually occurred rather than a hypothetical one,
 which is the only kind that has caught anything so far.

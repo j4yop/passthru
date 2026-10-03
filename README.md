@@ -11,17 +11,17 @@ setting. 16 runs, one speaker, one session:
 
 | Auto Cleanup | runs | worst | median | best | spread |
 |---|---|---|---|---|---|
-| **None** | 6 | 90.4% | 95.1% | 97.6% | **7.2 points** |
-| **Light** (product default) | 5 | 63.9% | 95.1% | 100.0% | **36.1 points** |
-| **Medium** | 5 | 59.0% | 87.9% | 100.0% | **41.0 points** |
+| **None** | 6 | 95.2% | 97.6% | 100.0% | **4.8 points** |
+| **Light** (product default) | 5 | 65.1% | 97.6% | 100.0% | **34.9 points** |
+| **Medium** | 5 | 59.0% | 92.7% | 100.0% | **41.0 points** |
 
 Five utterances turned a clean result into a messier and more useful one. On the first
 utterance, cleanup looked catastrophic and raw passthrough looked perfect. Across five:
 
 **Cleanup is not reliably worse. It is wildly variable, and you cannot tell in advance
-which run will be the bad one.** Medium beat raw passthrough on utterance 5. It halved
-utterance 1. There is no threshold you can reason your way to, only a distribution, and only
-one of the three settings has a floor.
+which run will be the bad one.** Medium tied raw passthrough at a clean 100% on utterances
+4 and 5, and halved utterance 1. There is no threshold you can reason your way to, only a
+distribution, and only one of the three settings has a floor.
 
 The most serious observation is not a missing token. On utterance 1, at both rewrite
 settings, **`no pytest` arrived as `not pytest`.** That is not degradation. It is the
@@ -30,7 +30,7 @@ wrong. Raw passthrough delivered it correctly, twice out of two attempts.
 
 **Try it live → [passthru-ebon.vercel.app](https://passthru-ebon.vercel.app)** · source: [`reports/index.html`](reports/index.html)
 
-One self-contained HTML file, 76 KB. No build step and nothing fetched: styles and scorer
+One self-contained HTML file, 79 KB. No build step and nothing fetched: styles and scorer
 are embedded, so it renders identically from that URL and from a local file path.
 
 On the page you can **score your own dictation** by pasting what you said and what arrived,
@@ -48,12 +48,18 @@ Deployed on Vercel as a static build; `vercel.json` declares it static so the pr
 Token survival on its own is trivia. What makes it matter is *which* tokens die, and the
 answer changed once there were five utterances to look at.
 
-**The recogniser does damage that no setting controls.** Across every run at every setting,
+**Some of what looks like damage is only quoting.** Across every run at every setting,
 identifiers arrived with their underscores escaped: `test\_score.py`, `customer\_id`,
-`created\_at`, `payment\_utils.py`. It happened in the raw passthrough runs too, so it is
-not a cleanup artefact — it is upstream, and switching settings cannot fix it. Turning on
-Dictionary partially repaired `customer ID` into `customer\_id` and could not remove the
-backslash.
+`created\_at`, `payment\_utils.py`, and one as \`customer\_id\` with the code-span
+backticks escaped too. The first version of this tool scored every one of those as a lost
+filename, which made the recogniser look like it was corrupting identifiers when it was
+quoting them. The scorer now undoes the escaping, and those losses are gone. Dictionary
+repaired `customer ID` into `customer\_id` on the way.
+
+Getting that wrong in the other direction is the easy mistake. A number spelled out is
+also not damage: `ninety nine` still says 99, and a unit abbreviation still says what it
+said. Both were scored as losses too, which is why the figures on this page moved when they
+were fixed.
 
 **Cleanup then deletes whole specifications, unpredictably.** On utterance 1 it dropped the
 filename, the numeric limit, and the mid-sentence retraction. On utterance 4 it lost nothing
@@ -63,8 +69,13 @@ at all and scored 100%.
 survival by wrapping identifiers in code spans, and arrive more useful for it. That is why
 the tool reports *which* requirements died and refuses to collapse that into one verdict.
 
+**A unit abbreviation is not a loss; the reverse is.** `240 pixels` arriving as `240px` still
+says 240, and the tool scores it as survived. `1rem` becoming `one rem` is scored as lost,
+because a literal became prose the agent has to re-parse. Those are opposite situations and
+the scorer treats them differently.
+
 The inversion is the finding that made the tool worth building. A tool that reported only
-percentages would have scored utterance 1 at Light as 63.9% and moved on.
+percentages would have scored utterance 1 at Light as 65.1% and moved on.
 
 ## How it works
 
@@ -104,6 +115,18 @@ passthru fixtures/corpus.json --advice            # plus the setting recommendat
 passthru fixtures/corpus.json --out /tmp/r.html   # anywhere you like
 ```
 
+The checks the project relies on are runnable too:
+
+```bash
+pytest                                          # 89 tests
+node scripts/check-parity.mjs                    # page scorer vs package, every run
+.venv/bin/python scripts/mutation.py             # 13 deliberate faults, all must be caught
+```
+
+`scripts/mutation.py` is the interesting one. It breaks the tokeniser in thirteen specific
+ways and fails if the suite does not notice each one, because reading the code finds what you
+already know.
+
 The report is a single self-contained HTML file. No assets, no JavaScript, legible in dark
 and light. It opens from a USB stick on a machine with no network.
 
@@ -130,15 +153,18 @@ script.
   token survival on real dictated speech. Those are different quantities and the code never
   conflates them: `advice.render_checked()` raises if any generated sentence contains
   "accuracy", "correctness", or "better output".
-- **n = 5, one speaker, one session.** Enough to show the effect is real and to measure its
+- **n = 5, one speaker, one session per day.** Enough to show the effect is real and to measure its
   spread. Not enough to characterise a distribution, and no confidence interval is claimed.
 - **The spoken side is a script, not a transcript.** A local ASR engine read the same audio
   and disagreed with Wispr in both directions, so neither is treated as ground truth.
-- **The scorer does not normalise spoken number words.** `99` arriving as `ninety nine` is
-  counted as a loss though the meaning is intact. This adds noise to every figure, including
-  the ones quoted above.
-- **Backslash escaping is reported by inspection, not modelled.** Four identifiers were
-  affected and the scorer does not special-case them.
+- **Number folding is a judgement call.** A bare unit word that is also a number word is
+  treated as a number, so `one file` becomes `1 file`. Both sides fold identically so nothing
+  is lost, but the token count is not the raw count of what was said. A run broken by a
+  non-number word is left alone, which protects `two point none` at the cost of missing a
+  decimal that really was spelled out.
+- **Escaping is undone everywhere, not only outside code spans.** Escaped backticks make a
+  code span impossible to detect reliably, so a backslash a reader would actually see is
+  scored as surviving.
 - **The utterances are technical instructions the author wrote and read aloud.** Not a random
   sample of development speech.
 - **Reading pace was not held constant across passes.** The most likely confound,

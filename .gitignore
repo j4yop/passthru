@@ -37,3 +37,7 @@ captures/
 __pycache__/
 *.py[cod]
 .vercel
+
+# Recordings of a voice. The --audio-dir flag still works, put clips here to embed
+# them; they are not committed, because the docs say audio is not published.
+audio/
