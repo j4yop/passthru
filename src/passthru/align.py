@@ -145,7 +145,10 @@ def align_utterances(
         chunks = sorted(buckets.get(index, []))
         if chunks:
             merged: list[str] = []
-            cursor_at = 0
+            # Start at the first matched token, not at offset zero, so each pair shows
+            # only the text attributable to its own utterance rather than everything
+            # before it as well.
+            cursor_at = chunks[0][0]
             for start, end in chunks:
                 if start > cursor_at:
                     merged.append(received_clean[cursor_at:start])
