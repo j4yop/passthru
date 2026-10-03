@@ -932,3 +932,25 @@ def test_distribution_n_counts_utterances_not_runs():
     assert stats["Light"]["n"] == 2, "two utterances, three settings each"
     assert stats["None"]["n"] == 2
     assert stats["Medium"]["n"] == 2
+
+
+def test_the_page_scorer_agrees_with_the_package():
+    """The report embeds a second implementation of the scorer, so it can quote numbers.
+
+    Drift between them would mean the page shows figures the package does not produce.
+    Node is skipped when absent rather than failed, so the suite stays runnable anywhere.
+    """
+    import shutil
+    import subprocess
+
+    node = shutil.which("node")
+    if node is None:
+        pytest.skip("node is not installed")
+    if shutil.which("bash") is None:
+        pytest.skip("bash is not installed")
+
+    result = subprocess.run(
+        [node, "scripts/check-parity.mjs"],
+        capture_output=True, text=True, cwd=Path(__file__).resolve().parents[1],
+    )
+    assert result.returncode == 0, f"browser scorer drifted from the package:\n{result.stderr}"

@@ -1034,9 +1034,39 @@ def _requirements(view: RunView) -> str:
     return "\n".join(items)
 
 
+def _sample_key(view: RunView) -> str:
+    """A key unique to one capture and setting.
+
+    Run ids repeat across captures once a corpus holds several utterances, so keying on the
+    run id alone silently dropped all but the last of each group and gave several buttons
+    the same payload.
+    """
+    if view.capture:
+        return f"{view.capture}:{view.auto_cleanup}"
+    return view.run_id
+
+
+def _presets(views: list[RunView]) -> list[RunView]:
+    """One run per setting for the capture the report leads on.
+
+    Sixteen buttons is clutter and, worse, sixteen near-identical comparisons. The report
+    already argues from every run; the presets exist to let a visitor try the scorer.
+    """
+    if not views:
+        return []
+    lead = views[0].capture or views[0].run_id
+    seen: dict[str, RunView] = {}
+    for view in views:
+        if (view.capture or view.run_id) != lead:
+            continue
+        seen.setdefault(view.auto_cleanup, view)
+    return list(seen.values())
+
+
 def _samples_script(views: list[RunView], spoken: str) -> str:
     payload = {
-        v.run_id: {"said": spoken, "got": _received_text(v)} for v in views
+        _sample_key(v): {"said": v.spoken_text or spoken, "got": _received_text(v)}
+        for v in views
     }
     encoded = json.dumps(payload, ensure_ascii=False)
     # A corpus is untrusted input: a note containing "</script>" would otherwise close
@@ -1054,8 +1084,8 @@ def _received_text(view: RunView) -> str:
 
 def _try_it_section(views: list[RunView], spoken: str) -> str:
     buttons = "".join(
-        f'<button data-sample="{_e(v.run_id)}">Try {_e(v.auto_cleanup)}</button>'
-        for v in views
+        f'<button data-sample="{_e(_sample_key(v))}">Try {_e(v.auto_cleanup)}</button>'
+        for v in _presets(views)
     )
     return f"""<div class="try-card">
 <h2 id="try">Measure your own dictation</h2>
