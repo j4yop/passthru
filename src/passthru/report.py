@@ -35,6 +35,7 @@ SUBTITLE = (
     "Token survival from speech into a coding agent, across Wispr Flow's dictation "
     "cleanup settings."
 )
+SURFACES = ""  # documented in README; the table here is static and cannot drift
 
 _STYLE = """
 :root{--bg:#fbfbfa;--fg:#1a1a19;--mut:#61615c;--line:#e4e4e0;--card:#fff;
@@ -151,6 +152,11 @@ class RunView:
     pairs: list[Pair] = field(default_factory=list)
     lost_requirements: list[Requirement] = field(default_factory=list)
     is_default: bool = False
+    capture: str = ""
+    """Which dictated utterance this run came from. Groups runs in the report."""
+
+    spoken_text: str = ""
+    """The ground truth for this capture, needed to score it outside a paired view."""
 
     @property
     def tone(self) -> str:
@@ -159,29 +165,95 @@ class RunView:
         return "warn" if self.ratio >= 0.6 else "bad"
 
 
+def _score_one(
+    run: dict[str, Any], spoken: str, capture: str = ""
+) -> RunView:
+    """Score a single run against its spoken text."""
+    received = run.get("received", "")
+    pairs = align_utterances(spoken, received)
+    requirements: list[Requirement] = []
+    for pair in pairs:
+        requirements.extend(mark_lost(extract(pair.spoken), pair.received))
+    return RunView(
+        run_id=run.get("id", "?"),
+        auto_cleanup=run.get("auto_cleanup", "?"),
+        label=run.get("label", ""),
+        ratio=aggregate(pairs),
+        spoken=sum(p.survival.spoken for p in pairs),
+        pairs=pairs,
+        lost_requirements=lost(requirements),
+        is_default=run.get("auto_cleanup", "").lower() == "light",
+        capture=capture,
+        spoken_text=spoken,
+    )
+
+
 def from_corpus(corpus: dict[str, Any]) -> list[RunView]:
-    """Score every run in a loaded corpus and return views ready to render."""
+    """Score every run in a loaded corpus.
+
+    Handles both corpus shapes: version 1, a single utterance with a flat run list, and
+    version 2, a list of captures each holding its own spoken text and runs. Version 1 is
+    still read so an older corpus keeps rendering.
+    """
+    captures = corpus.get("captures")
+    if isinstance(captures, list) and captures:
+        views: list[RunView] = []
+        for entry in captures:
+            spoken = entry.get("spoken", "")
+            capture_id = entry.get("id") or entry.get("label") or "?"
+            for run in entry.get("runs", []):
+                views.append(_score_one(run, spoken, capture_id))
+        return views
+
     spoken = corpus.get("spoken_ground_truth", "")
-    views: list[RunView] = []
-    for run in corpus.get("runs", []):
-        received = run.get("received", "")
-        pairs = align_utterances(spoken, received)
-        requirements: list[Requirement] = []
-        for pair in pairs:
-            requirements.extend(mark_lost(extract(pair.spoken), pair.received))
-        views.append(
-            RunView(
-                run_id=run.get("id", "?"),
-                auto_cleanup=run.get("auto_cleanup", "?"),
-                label=run.get("label", ""),
-                ratio=aggregate(pairs),
-                spoken=sum(p.survival.spoken for p in pairs),
-                pairs=pairs,
-                lost_requirements=lost(requirements),
-                is_default=run.get("auto_cleanup", "").lower() == "light",
-            )
+    return [_score_one(run, spoken) for run in corpus.get("runs", [])]
+
+
+def distribution(views: list[RunView]) -> list[dict[str, Any]]:
+    """Per-setting statistics across every capture.
+
+    With one utterance this is a single number and means little. With several it is the
+    difference between an anecdote and a measurement, which is why the report says which
+    one it is looking at rather than quietly showing a mean.
+    """
+    by_setting: dict[str, list[RunView]] = {}
+    for view in views:
+        by_setting.setdefault(view.auto_cleanup, []).append(view)
+
+    out: list[dict[str, Any]] = []
+    for setting in sorted(by_setting, key=lambda s: -_setting_rank(s)):
+        group = sorted(by_setting[setting], key=lambda v: v.ratio)
+        ratios = [v.ratio for v in group]
+        middle = len(ratios) // 2
+        median = (
+            ratios[middle]
+            if len(ratios) % 2
+            else (ratios[middle - 1] + ratios[middle]) / 2
         )
-    return views
+        lost_values: dict[str, int] = {}
+        for view in group:
+            for requirement in view.lost_requirements:
+                key = requirement.value.lower()
+                lost_values[key] = lost_values.get(key, 0) + 1
+        out.append(
+            {
+                "setting": setting,
+                "n": len(group),
+                "min": min(ratios),
+                "median": median,
+                "max": max(ratios),
+                "is_default": group[0].is_default,
+                "lost_counts": sorted(
+                    lost_values.items(), key=lambda kv: (-kv[1], kv[0])
+                ),
+            }
+        )
+    return out
+
+
+def _setting_rank(setting: str) -> int:
+    order = {"none": 0, "light": 1, "medium": 2}
+    return order.get(setting.lower(), 3)
 
 
 @lru_cache(maxsize=1)
@@ -367,6 +439,41 @@ def render(views: list[RunView], limitations: list[str] | None = None,
 
     limits = "".join(f"<li>{_e(item)}</li>" for item in limitations)
 
+    stats = distribution(views)
+    capture_count = len({v.capture for v in views if v.capture})
+    if capture_count > 1:
+        rows = []
+        for entry in stats:
+            default = ' <small>product default</small>' if entry["is_default"] else ""
+            worst = ", ".join(f"{k} in {n}/{entry['n']}" for k, n in entry["lost_counts"][:3])
+            rows.append(
+                f"""      <tr>
+        <td>{_e(entry['setting'])}{default}</td>
+        <td class="num">{entry['n']}</td>
+        <td class="num">{entry['min'] * 100:.1f}%</td>
+        <td class="num">{entry['median'] * 100:.1f}%</td>
+        <td class="num">{entry['max'] * 100:.1f}%</td>
+        <td>{_e(worst) or 'nothing lost'}</td>
+      </tr>"""
+            )
+        distribution_block = f"""<h2>Across every utterance</h2>
+<p class="note">{capture_count} utterances captured at each setting. This is a
+distribution, not a single demonstration.</p>
+<div class="bars">
+  <table>
+    <thead><tr><th>Auto Cleanup</th><th>n</th><th>min</th><th>median</th><th>max</th>
+    <th>requirements lost</th></tr></thead>
+    <tbody>
+{chr(10).join(rows)}
+    </tbody>
+  </table>
+</div>"""
+    else:
+        distribution_block = """<h2>Across every utterance</h2>
+<p class="note">One utterance captured so far, so there is no distribution to show. Add
+more with <code>passthru capture</code> and this becomes a range rather than a single
+number.</p>"""
+
     return f"""<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -385,6 +492,8 @@ def render(views: list[RunView], limitations: list[str] | None = None,
 <div class="bars">
 {chr(10).join(_bar(v) for v in views)}
 </div>{headline}
+
+{distribution_block}
 
 {_try_it_section(views, spoken)}
 

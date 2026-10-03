@@ -113,9 +113,125 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
+def build_capture_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(
+        prog="passthru capture",
+        description="Dictate into Scratchpad, then run this to add the result to a corpus.",
+    )
+    parser.add_argument(
+        "--cleanup",
+        required=True,
+        help="the Auto Cleanup level that was active while you dictated, e.g. Light",
+    )
+    parser.add_argument(
+        "--label", default="", help="short name for this utterance, e.g. 'css spec'"
+    )
+    parser.add_argument(
+        "--script",
+        default="",
+        help="the exact text you read aloud; the ground truth for this capture",
+    )
+    parser.add_argument(
+        "--corpus", type=Path, default=Path("fixtures/corpus.json"), help="corpus to append to"
+    )
+    parser.add_argument(
+        "--mic", default="MacBook Air Microphone", help="microphone name to record from"
+    )
+    parser.add_argument(
+        "--seconds",
+        type=float,
+        default=30.0,
+        help="how long to record; ignored unless --record is given",
+    )
+    parser.add_argument(
+        "--record",
+        action="store_true",
+        help="also record audio from the microphone (dictate while it runs)",
+    )
+    parser.add_argument(
+        "--transcribe",
+        action="store_true",
+        help="derive the spoken text from a local ASR pass instead of --script",
+    )
+    return parser
+
+
+def run_capture(argv: list[str]) -> int:
+    """Add one dictated utterance to a corpus. Returns an exit code."""
+    from .capture import (
+        Capture,
+        CaptureError,
+        append_capture,
+        pull_latest_note,
+        record,
+        summarise,
+        transcribe,
+    )
+    from .scratchpad import WisprError, resolve_token
+
+    args = build_capture_parser().parse_args(argv)
+
+    try:
+        audio_path = None
+        if args.record or args.transcribe:
+            print(f"recording {args.seconds:.0f}s from {args.mic!r} - start dictating now")
+            audio_path = record(
+                Path("captures") / "last.wav", args.seconds, mic=args.mic
+            )
+
+        spoken = args.script.strip()
+        if not spoken and args.transcribe and audio_path:
+            spoken = transcribe(audio_path)
+        if not spoken:
+            raise CaptureError(
+                "no spoken text: pass --script with the text you read, or --transcribe"
+            )
+
+        token = resolve_token()
+        note_id, received = pull_latest_note(token)
+
+        identifier = args.label.strip() or f"cap{len(load_captures(args.corpus)) + 1:02d}"
+        capture = Capture(
+            id=identifier,
+            label=args.label.strip() or identifier,
+            auto_cleanup=args.cleanup,
+            spoken=spoken,
+            received=received,
+            audio=str(audio_path) if audio_path else None,
+            note_id=note_id,
+        )
+        append_capture(args.corpus, capture)
+        print(summarise(capture, spoken, received))
+        print(f"added to {args.corpus} as {identifier!r} at Auto Cleanup {args.cleanup}")
+        if audio_path:
+            print(f"audio: {audio_path}")
+        print("note: the corpus grows one utterance at a time; n is still small")
+    except (CaptureError, WisprError) as exc:
+        print(f"passthru capture: {exc}", file=sys.stderr)
+        return 1
+    return 0
+
+
+def load_captures(corpus_path: Path) -> list:
+    from .capture import load_corpus
+
+    try:
+        return load_corpus(corpus_path).get("captures", [])
+    except CaptureError:
+        return []
+
+
 def main(argv: list[str] | None = None) -> int:
     """Entry point. Returns a process exit code."""
-    args = build_parser().parse_args(argv)
+    raw = sys.argv[1:] if argv is None else argv
+    if raw and raw[0] == "capture":
+        return run_capture(raw[1:])
+    if raw and raw[0] in ("-h", "--help") and len(raw) == 1:
+        build_parser().print_help()
+        print("\nAlso available: passthru capture --help")
+        return 0
+
+    args = build_parser().parse_args(raw)
 
     try:
         corpus = load_corpus(args.corpus)

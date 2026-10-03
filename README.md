@@ -60,17 +60,27 @@ right.**
 
 Three surfaces between your mouth and the agent's context:
 
-| | Surface | Read via | Loss here means |
+| | Surface | How it is read | Status |
 |---|---|---|---|
-| **A** | the audio you spoke | MLX Whisper, local | speech recognition error |
-| **B** | the text Wispr delivered | Scratchpad, via MCP | dictation cleanup |
-| **C** | the text the agent received | screen OCR | paste loss or manual edits |
+| **A** | the audio you spoke | the script you read, or a local Whisper pass as a second witness | ground truth |
+| **B** | the text Wispr delivered | Scratchpad, over MCP | **measured** |
+| **C** | the text the agent received | you paste it | by hand, deliberately |
 
-Scoring A→B and B→C separately is the point. One A→C number tells you something broke.
-Three tell you **which stage** broke.
+**A→B is what this tool measures. B→C is not automated, and that is a decision rather
+than an omission.**
+
+Screen OCR was the obvious way to read surface C and it is not implemented. OCR of a
+terminal is unreliable, and — the deciding problem — **you cannot verify an OCR number by
+listening to it.** A B→C figure derived from OCR would carry an unquantified error into
+the one claim this project makes about which stage broke things. A measurement you cannot
+check is worse than no measurement, so C is a paste: you copy what the agent received and
+the number is exact.
+
+The attribution A→B vs B→C still holds. A→B isolates dictation cleanup. Anything that
+differs between B and C is paste loss or a manual edit, and you can see that by eye.
 
 Wispr Flow's MCP server exposes meetings, calendar, and Scratchpad, and **no dictation
-history**, by design. That is why surface A must be captured from the microphone. Treat it
+history**, by design. That is why surface A has to come from the microphone at all. Treat it
 as a finding rather than a gap: the absence is an intentional privacy boundary, and it is
 also the reason the tool has to exist.
 

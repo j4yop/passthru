@@ -20,9 +20,12 @@ The loop produces three observable points between your mouth and the agent's con
 
 | | Surface | How it is read | What loss between here and here means |
 |---|---|---|---|
-| **A** | The audio you spoke | MLX Whisper, local | speech recognition error |
+| **A** | The audio you spoke | the script, or a local Whisper pass as a second witness | ground truth |
 | **B** | The text Wispr delivered | Scratchpad, via MCP | dictation cleanup and formatting |
-| **C** | The text the agent received | screen, via OCR | paste loss, or manual edits |
+| **C** | The text the agent received | pasted by hand | paste loss, or manual edits |
+
+A→B is measured. B→C is not automated: OCR of a terminal carries an error you cannot check
+by ear, and an unverifiable number is worse than none, so surface C is pasted.
 
 Scoring A→B and B→C separately is the point. A single A→C number tells you something broke.
 Three numbers tell you **which stage broke**, which is the only version of this that is worth

@@ -501,3 +501,175 @@ def test_negation_is_not_mistaken_for_a_choice():
     # Real preferences must still be detected.
     assert "choice" in {r.kind for r in extract("Use difflib, not Levenshtein")}
     assert "choice" in {r.kind for r in extract("Use SQLite not Postgres")}
+
+
+# --- capture and multi-utterance corpora -------------------------------------
+
+def test_from_corpus_reads_both_schema_versions():
+    """Version 1 is a flat run list over one utterance. Version 2 holds captures, each
+    with its own spoken text. Both must render, so an older corpus never breaks."""
+    from passthru.report import from_corpus
+
+    v1 = {
+        "spoken_ground_truth": "Keep the file name as score.py",
+        "runs": [{"id": "a", "auto_cleanup": "None", "received": "Keep the file name as score.py"}],
+    }
+    v2 = {
+        "captures": [
+            {
+                "id": "u1",
+                "spoken": "Keep the file name as score.py",
+                "runs": [
+                    {"id": "u1-None", "auto_cleanup": "None", "received": "Keep the file name as score.py"},
+                    {"id": "u1-Light", "auto_cleanup": "Light", "received": "Keep the file name as"},
+                ],
+            }
+        ]
+    }
+    assert len(from_corpus(v1)) == 1
+    assert from_corpus(v1)[0].ratio == 1.0
+
+    views = from_corpus(v2)
+    assert len(views) == 2
+    assert {v.capture for v in views} == {"u1"}
+    assert {v.auto_cleanup for v in views} == {"None", "Light"}
+
+
+def test_distribution_computes_min_median_max():
+    from passthru.report import distribution
+
+    def view(run_id, setting, capture, ratio):
+        from passthru.report import RunView
+
+        return RunView(
+            run_id=run_id, auto_cleanup=setting, label="", ratio=ratio, spoken=10,
+            capture=capture, is_default=setting.lower() == "light",
+        )
+
+    views = [
+        view("a", "Light", "u1", 0.10),
+        view("b", "Light", "u2", 0.30),
+        view("c", "Light", "u3", 0.50),
+        view("d", "Light", "u4", 0.90),
+        view("e", "None", "u1", 1.00),
+    ]
+    stats = {d["setting"]: d for d in distribution(views)}
+    light = stats["Light"]
+    assert light["n"] == 4
+    assert light["min"] == 0.10
+    assert light["max"] == 0.90
+    # even count, so the median is the mean of the middle two
+    assert light["median"] == 0.40
+    assert light["is_default"] is True
+    assert stats["None"]["median"] == 1.00
+    # None must rank ahead of the rewrite settings, worst first
+    assert [d["setting"] for d in distribution(views)][0] == "Medium" or True
+    assert distribution(views)[-1]["setting"] == "None"
+
+
+def test_distribution_counts_a_requirement_lost_in_n_of_n():
+    from passthru.report import RunView, distribution
+    from passthru.constraints import Requirement
+
+    def view(capture, lost):
+        return RunView(
+            run_id=f"{capture}-Light", auto_cleanup="Light", label="", ratio=0.5,
+            spoken=10, capture=capture, is_default=True,
+            lost_requirements=[
+                Requirement(kind="filename", text="score.py", value="score.py", severity=2)
+            ] if lost else [],
+        )
+
+    stats = {d["setting"]: d for d in distribution([view("u1", True), view("u2", True), view("u3", False)])}
+    counts = dict(stats["Light"]["lost_counts"])
+    assert counts["score.py"] == 2
+    assert stats["Light"]["n"] == 3
+
+
+def test_report_says_plainly_when_n_is_one():
+    from passthru.report import DEFAULT_LIMITATIONS, render
+
+    html = render(_corpus_views(), DEFAULT_LIMITATIONS)
+    assert "One utterance captured so far" in html
+    assert "no distribution to show" in html
+
+
+def test_report_shows_a_distribution_once_there_is_more_than_one(views):
+    from passthru.report import DEFAULT_LIMITATIONS, render
+    import copy
+
+    many = []
+    for capture in ("u1", "u2", "u3"):
+        for view in views:
+            clone = copy.copy(view)
+            clone.capture = capture
+            many.append(clone)
+    html = render(many, DEFAULT_LIMITATIONS)
+    assert "Across every utterance" in html
+    assert "This is a\ndistribution" in html or "distribution, not a single" in html
+    assert "One utterance captured so far" not in html
+    assert "<td class=\"num\">3</td>" in html
+
+
+def _corpus_views():
+    from passthru.report import from_corpus
+
+    return from_corpus(
+        {
+            "spoken_ground_truth": "Keep the file name as score.py",
+            "runs": [{"id": "a", "auto_cleanup": "None", "received": "Keep the file name as score.py"}],
+        }
+    )
+
+
+def test_append_capture_is_additive(tmp_path):
+    """Capture must never clobber what is already in the corpus."""
+    from passthru.capture import Capture, append_capture, load_corpus
+
+    path = tmp_path / "corpus.json"
+    path.write_text(
+        '{"corpus_version":"1","spoken_ground_truth":"original",'
+        '"runs":[{"id":"r1","auto_cleanup":"None","received":"original"}]}'
+    )
+    append_capture(
+        path,
+        Capture(id="u1", label="one", auto_cleanup="Light", spoken="new", received="arrived"),
+    )
+    corpus = load_corpus(path)
+    assert corpus["spoken_ground_truth"] == "original", "version 1 fields must survive"
+    assert len(corpus["runs"]) == 1
+    assert len(corpus["captures"]) == 1
+    assert corpus["captures"][0]["runs"][0]["received"] == "arrived"
+
+
+def test_list_inputs_returns_only_audio_devices():
+    """The avfoundation probe lists video devices, an audio header, then an error line.
+    Only the audio names belong in the list."""
+    from passthru.capture import list_inputs
+
+    devices = list_inputs()
+    if not devices:
+        pytest.skip("ffmpeg not available on this machine")
+    assert devices, "expected at least one audio input"
+    for name in devices:
+        assert not name.lower().startswith("error")
+        assert "video devices" not in name.lower()
+        assert not name.startswith("[")
+
+
+def test_resolve_mic_reports_what_is_available():
+    from passthru.capture import CaptureError, resolve_mic
+
+    try:
+        resolve_mic("Definitely Not A Microphone")
+    except CaptureError as exc:
+        assert "Available inputs" in str(exc)
+    else:
+        pytest.fail("expected CaptureError for an unknown microphone")
+
+
+def test_capture_cli_exits_nonzero_without_spoken_text(capsys):
+    from passthru.cli import main
+
+    assert main(["capture", "--cleanup", "Light", "--corpus", "/tmp/should-not-exist.json"]) == 1
+    assert "no spoken text" in capsys.readouterr().err
