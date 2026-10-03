@@ -737,3 +737,66 @@ def test_append_capture_twice_keeps_both():
     assert [c["id"] for c in corpus["captures"]] == ["u1", "u2"]
     assert corpus["captures"][0]["runs"][0]["received"] == "r-u1"
     assert corpus["captures"][1]["runs"][0]["received"] == "r-u2"
+
+
+def test_same_utterance_at_three_settings_is_one_capture_with_three_runs():
+    """The same utterance is captured once per Auto Cleanup level. Those runs belong to the
+    same capture, because the report's distribution groups by capture id and counts
+    utterances. Splitting them into three captures would make n wrong."""
+    import tempfile
+
+    from passthru.capture import Capture, append_capture, load_corpus
+
+    path = Path(tempfile.mkdtemp()) / "corpus.json"
+    for setting, received in (("Light", "a"), ("None", "a b"), ("Medium", "a")):
+        append_capture(path, Capture(id="u1", label="u1", auto_cleanup=setting,
+                                     spoken="a b c", received=received))
+    corpus = load_corpus(path)
+    assert len(corpus["captures"]) == 1, "three settings of one utterance is one capture"
+    assert [r["auto_cleanup"] for r in corpus["captures"][0]["runs"]] == [
+        "Light", "None", "Medium"
+    ]
+
+
+def test_recapturing_a_setting_replaces_rather_than_duplicates():
+    import tempfile
+
+    from passthru.capture import Capture, append_capture, load_corpus
+
+    path = Path(tempfile.mkdtemp()) / "corpus.json"
+    append_capture(path, Capture(id="u1", label="u1", auto_cleanup="Light",
+                                 spoken="a b c", received="first"))
+    append_capture(path, Capture(id="u1", label="u1", auto_cleanup="Light",
+                                 spoken="a b c", received="second"))
+    runs = load_corpus(path)["captures"][0]["runs"]
+    assert len(runs) == 1, "a re-capture at the same setting must replace, not duplicate"
+    assert runs[0]["received"] == "second"
+
+
+def test_distribution_n_counts_utterances_not_runs():
+    """Regression guard: n must be the number of utterances at a setting, so three
+    settings of one utterance contributes 1 to each, not 3 to one."""
+    from passthru.report import distribution, from_corpus
+
+    corpus = {
+        "captures": [
+            {
+                "id": f"u{i}",
+                "spoken": "Keep the file name as score.py and keep it under 200 lines",
+                "runs": [
+                    {"id": f"u{i}-{s}", "auto_cleanup": s, "label": "",
+                     "received": r}
+                    for s, r in (
+                        ("Light", "Keep the file name as and keep it under 200 lines"),
+                        ("None", "Keep the file name as score.py and keep it under 200 lines"),
+                        ("Medium", "Keep it under 200 lines"),
+                    )
+                ],
+            }
+            for i in (1, 2)
+        ]
+    }
+    stats = {d["setting"]: d for d in distribution(from_corpus(corpus))}
+    assert stats["Light"]["n"] == 2, "two utterances, three settings each"
+    assert stats["None"]["n"] == 2
+    assert stats["Medium"]["n"] == 2

@@ -205,27 +205,45 @@ def load_corpus(path: Path) -> dict[str, Any]:
 
 
 def append_capture(path: Path, capture: Capture) -> dict[str, Any]:
-    """Add a capture, creating the file if needed. Existing entries are untouched."""
+    """Add a run to a corpus, creating the capture if it is new.
+
+    The same utterance is captured once per Auto Cleanup setting, so a second capture with
+    an id that already exists adds a run to it rather than starting a new utterance. Grouping
+    happens by capture id in the report's distribution, so the three settings of one
+    utterance belong together.
+    """
     corpus = load_corpus(path)
-    if "captures" not in corpus:
-        # Additive upgrade: keep version 1 fields so an older corpus still renders.
-        corpus["captures"] = []
-    corpus["captures"].append(
-        {
+    captures = corpus.setdefault("captures", [])
+
+    run = {
+        "id": capture.id,
+        "auto_cleanup": capture.auto_cleanup,
+        "label": capture.label,
+        "received": capture.received,
+        "note_id": capture.note_id,
+    }
+
+    for existing in captures:
+        if isinstance(existing, dict) and existing.get("id") == capture.id:
+            runs = existing.setdefault("runs", [])
+            runs[:] = [r for r in runs if r.get("auto_cleanup") != capture.auto_cleanup]
+            runs.append(run)
+            if capture.spoken:
+                existing["spoken"] = capture.spoken
+            if capture.audio:
+                existing["audio"] = capture.audio
+            break
+    else:
+        entry = {
             "id": capture.id,
             "label": capture.label,
             "spoken": capture.spoken,
-            "runs": [
-                {
-                    "id": capture.id,
-                    "auto_cleanup": capture.auto_cleanup,
-                    "label": capture.label,
-                    "received": capture.received,
-                    "note_id": capture.note_id,
-                }
-            ],
+            "runs": [run],
         }
-    )
+        if capture.audio:
+            entry["audio"] = capture.audio
+        captures.append(entry)
+
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(corpus, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
     return corpus

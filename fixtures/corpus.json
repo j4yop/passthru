@@ -30,9 +30,31 @@
     }
   ],
   "expected": {
-    "none": {"survival_range": [0.95, 1.0], "must_keep": ["score.py", "200", "lines"]},
-    "light": {"survival_range": [0.5, 0.7], "must_keep": []},
-    "medium": {"survival_range": [0.5, 0.7], "must_keep": []}
+    "none": {
+      "survival_range": [
+        0.95,
+        1.0
+      ],
+      "must_keep": [
+        "score.py",
+        "200",
+        "lines"
+      ]
+    },
+    "light": {
+      "survival_range": [
+        0.5,
+        0.7
+      ],
+      "must_keep": []
+    },
+    "medium": {
+      "survival_range": [
+        0.5,
+        0.7
+      ],
+      "must_keep": []
+    }
   },
   "critical_tokens": [
     "score.py",
@@ -41,5 +63,21 @@
     "scratch",
     "levenshtein",
     "difflib"
+  ],
+  "captures": [
+    {
+      "id": "u1",
+      "label": "u1 test/tokenizer",
+      "spoken": "Add a test file called test_score.py that pins the tokenizer, and make sure it covers the trailing period case, so score.py followed by a full stop must not be treated as a different token. Only use the standard library, no pytest, because we want it to run without installing anything. The threshold should be 0.7, not 0.5. And it has to run on Python 3.10, since we still support that. Oh wait, actually, scratch the 3.10 part, that's for the other repo.",
+      "runs": [
+        {
+          "id": "u1",
+          "auto_cleanup": "None",
+          "label": "u1 test/tokenizer",
+          "received": "Add a test file called test\\_score.py that tests the tokenizer and make sure it covers the trailing period case. So score.py followed by a full stop must not be treated as a different token. Only use the standard library, no pytest, because we want it to run without installing anything. The threshold should be 0.7. not zero point five. It has to run a Python three point ten. Since we still support that. Oh wait, actually scratch the three point ten part. That's for other repo.",
+          "note_id": "6a224d4e-341a-4843-a50f-2acfe3321801"
+        }
+      ]
+    }
   ]
 }
