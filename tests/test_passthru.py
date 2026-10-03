@@ -7,6 +7,8 @@ two modules before it was pinned. These are the assertions that make it stay fix
 
 from __future__ import annotations
 
+from pathlib import Path
+
 import pytest
 
 from passthru.align import aggregate, align_utterances, split_utterances
@@ -673,3 +675,65 @@ def test_capture_cli_exits_nonzero_without_spoken_text(capsys):
 
     assert main(["capture", "--cleanup", "Light", "--corpus", "/tmp/should-not-exist.json"]) == 1
     assert "no spoken text" in capsys.readouterr().err
+
+
+def test_parse_inputs_ignores_video_devices_and_the_error_line():
+    """The avfoundation probe output is fixed in shape, so the parser is tested against a
+    synthetic copy rather than only against whatever hardware is attached."""
+    from passthru.capture import parse_inputs
+
+    raw = "\n".join([
+        "[AVFoundation indev @ 0x1] AVFoundation video devices:",
+        "[AVFoundation indev @ 0x1] [0] FaceTime HD Camera",
+        "[AVFoundation indev @ 0x1] [1] Capture screen 0",
+        "[AVFoundation indev @ 0x2] AVFoundation audio devices:",
+        "[AVFoundation indev @ 0x2] [0] Some Microphone",
+        "[AVFoundation indev @ 0x2] [1] Built-in Mic",
+        "[in#0 @ 0x3] Error opening input: Input/output error",
+        "Error opening input file .",
+    ])
+    assert parse_inputs(raw) == ["Some Microphone", "Built-in Mic"]
+
+
+def test_parse_inputs_handles_no_audio_section():
+    from passthru.capture import parse_inputs
+
+    assert parse_inputs("[AVFoundation indev @ 0x1] AVFoundation video devices:\n"
+                        "[AVFoundation indev @ 0x1] [0] Camera\n") == []
+
+
+def test_median_differs_between_odd_and_even_counts():
+    """Mutation: forcing the even branch passed, because the test only used an even count.
+    For an odd count the two branches give different answers, so both need pinning."""
+    from passthru.report import RunView, distribution
+
+    def build(count):
+        return [
+            RunView(run_id=str(i), auto_cleanup="Light", label="", ratio=i / 10.0,
+                    spoken=10, capture=f"u{i}", is_default=True)
+            for i in range(count)
+        ]
+
+    even = {d["setting"]: d for d in distribution(build(4))}["Light"]
+    odd = {d["setting"]: d for d in distribution(build(5))}["Light"]
+    assert even["n"] == 4 and odd["n"] == 5
+    # four ratios 0.0 0.1 0.2 0.3 -> mean of the two middle, 0.15
+    assert even["median"] == pytest.approx(0.15)
+    # five ratios 0.0 0.1 0.2 0.3 0.4 -> the single middle, 0.2
+    assert odd["median"] == 0.20
+
+
+def test_append_capture_twice_keeps_both():
+    """The clobbering guard existed but was only exercised by a single append."""
+    from passthru.capture import Capture, append_capture, load_corpus
+
+    import tempfile
+
+    path = Path(tempfile.mkdtemp()) / "corpus.json"
+    for name in ("u1", "u2"):
+        append_capture(path, Capture(id=name, label=name, auto_cleanup="Light",
+                                     spoken="s", received=f"r-{name}"))
+    corpus = load_corpus(path)
+    assert [c["id"] for c in corpus["captures"]] == ["u1", "u2"]
+    assert corpus["captures"][0]["runs"][0]["received"] == "r-u1"
+    assert corpus["captures"][1]["runs"][0]["received"] == "r-u2"

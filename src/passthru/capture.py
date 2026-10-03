@@ -52,25 +52,16 @@ def _require(tool: str) -> str:
     return path
 
 
-def list_inputs() -> list[str]:
-    """Names of avfoundation **audio** inputs.
+def parse_inputs(raw: str) -> list[str]:
+    """Extract audio device names from avfoundation's probe output.
 
-    The device list contains video devices first, then a header, then audio devices, and
-    finally an error line from the deliberately-failed probe. Only the audio section is
-    wanted, and the `Error opening input` line must not become a device name.
+    Split out from `list_inputs` so the parsing can be tested against synthetic output
+    instead of only whatever hardware happens to be attached.
     """
-    ffmpeg = shutil.which("ffmpeg")
-    if not ffmpeg:
-        return []
-    proc = subprocess.run(
-        [ffmpeg, "-f", "avfoundation", "-list_devices", "true", "-i", ""],
-        capture_output=True,
-        text=True,
-    )
     devices: list[str] = []
     in_audio = False
-    for raw in (proc.stderr or "").splitlines():
-        line = raw.strip()
+    for text in raw.splitlines():
+        line = text.strip()
         if line.endswith("AVFoundation audio devices:"):
             in_audio = True
             continue
@@ -84,6 +75,24 @@ def list_inputs() -> list[str]:
         if match:
             devices.append(match.group(1).strip())
     return devices
+
+
+def list_inputs() -> list[str]:
+    """Names of avfoundation **audio** inputs on this machine.
+
+    The probe lists video devices first, then a header, then audio devices, then an error
+    line from the deliberately-failed open. Only the audio names are wanted, and the error
+    line must not become a device name.
+    """
+    ffmpeg = shutil.which("ffmpeg")
+    if not ffmpeg:
+        return []
+    proc = subprocess.run(
+        [ffmpeg, "-f", "avfoundation", "-list_devices", "true", "-i", ""],
+        capture_output=True,
+        text=True,
+    )
+    return parse_inputs(proc.stderr or "")
 
 
 def resolve_mic(name: str = DEFAULT_MIC_NAME) -> str:
