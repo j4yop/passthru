@@ -132,6 +132,13 @@
           "label": "u3 sql/index",
           "received": "Add an index on the orders table and never drop the customer ID column because the monthly report depends on it. Match on status not on state. The index should cover created\\_at and keep it non-unique so duplicate rows still insert and utterance",
           "note_id": "7d0a6418-47e2-480a-a2c3-2d353e0f059b"
+        },
+        {
+          "id": "u3",
+          "auto_cleanup": "None",
+          "label": "u3 sql/index",
+          "received": "Add an index on the orders table and never drop the customer ID column because the monthly report depends on it. Match on status not on state. The index should cover created\\_at and keep it non-unique so duplicate rows still insert end utterance.",
+          "note_id": "cf2d7038-7e82-4275-8acb-4dd7312d147f"
         }
       ]
     }
