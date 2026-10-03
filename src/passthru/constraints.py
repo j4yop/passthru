@@ -256,3 +256,73 @@ def lost(requirements: list[Requirement]) -> list[Requirement]:
     return sorted(
         (r for r in requirements if not r.survived), key=lambda r: (-r.severity, r.kind)
     )
+
+
+# Ways of forbidding something, paired with the way the same thing tends to arrive instead.
+# "no pytest" arriving as "not pytest" is not a degraded instruction, it is the opposite
+# one, and the agent receives it with no indication that anything went wrong.
+#
+# This lives here rather than only in the page because it is the most serious observation in
+# the corpus and a measurement that can only see it in a browser is a worse measurement.
+# The replacement pattern is a template with a single hole, not a regex with a
+# backreference: `\1` would number against the pattern being built, which has no group to
+# point at. That mistake makes every inversion undetectable rather than merely wrong.
+_INVERSION_RULES: tuple[tuple[str, str], ...] = (
+    (r"\bno\s+([\w.+#-]+)", r"\bnot\s+{word}\b"),
+    (r"\bnever\s+([\w.+#-]+)", r"\b(?:always|do)\s+{word}\b"),
+    (r"\bwithout\s+([\w.+#-]+)", r"\bwith\s+{word}\b"),
+    (r"\bdon'?t\s+([\w.+#-]+)", r"\bdo\s+{word}\b"),
+)
+
+
+class Inversion(NamedTuple):
+    """A prohibition that arrived as its opposite."""
+
+    said: str
+    """The phrase as spoken, e.g. `no pytest`."""
+
+    arrived: str
+    """What was delivered instead, e.g. `not pytest`."""
+
+    replacement: str
+    """The word that took the prohibition's place."""
+
+
+def detect_inversions(spoken: str, received: str) -> list[Inversion]:
+    """Return every prohibition in `spoken` that `received` states as its opposite.
+
+    Deliberately narrow. It reports only a specific, unambiguous shape -- a negation paired
+    with the word it negates -- because a check that cries wolf here would be worse than no
+    check: an inverted prohibition is alarming, so a false one would train the reader to
+    ignore it. A one-character prohibition match is skipped for the same reason.
+    """
+    said = _normalise(spoken)
+    got = _normalise(received)
+    found: list[Inversion] = []
+    seen: set[tuple[str, str]] = set()
+
+    for spoken_pattern, received_pattern in _INVERSION_RULES:
+        for match in re.finditer(spoken_pattern, said):
+            # The character class includes '.' so that filenames survive, which means a
+            # prohibition at the end of a sentence captures "pytest." and then never
+            # matches "not pytest". Same trailing-punctuation trap as everywhere else here.
+            word = match.group(1).rstrip(".,;:")
+            if not word or len(word) < 2:
+                continue
+            key = (match.group(0), word)
+            if key in seen:
+                continue
+            replacement = re.search(
+                received_pattern.format(word=re.escape(word)), got
+            )
+            if not replacement:
+                continue
+            seen.add(key)
+            found.append(
+                Inversion(
+                    said=re.sub(r"\s+", " ", match.group(0)).strip(),
+                    arrived=re.sub(r"\s+", " ", replacement.group(0)).strip(),
+                    replacement=replacement.group(0).split()[0],
+                )
+            )
+    return found

@@ -7,6 +7,7 @@ two modules before it was pinned. These are the assertions that make it stay fix
 
 from __future__ import annotations
 
+import json
 import sys
 from pathlib import Path
 
@@ -1149,3 +1150,144 @@ def test_the_claimed_test_count_is_the_real_one():
         f"the report claims {CLAIMED_TESTS} tests but pytest collects {len(collected)}. "
         "Update CLAIMED_TESTS in report.py, or do not print a count at all."
     )
+
+
+# --- The live three-way checker -----------------------------------------------------
+#
+# Built because the published corpus cannot support a recommendation: the advice rule needs
+# a sibling run of the same utterance at a different setting, and only four captures have
+# all three. The checker makes the witness trivially available by construction.
+
+
+def test_an_inverted_prohibition_is_reported_as_the_opposite_instruction():
+    """`no pytest` arriving as `not pytest` is not degradation, it is inversion.
+
+    This is the most serious observation in the corpus and it cannot be expressed as a
+    survival percentage. u1 loses 34.9 points at Light, but the number does not say *which*
+    loss mattered; this does.
+    """
+    from passthru.constraints import detect_inversions
+
+    spoken = "Only use the standard library, no pytest, because it should run anywhere."
+    assert detect_inversions(spoken, spoken) == []
+
+    inverted = spoken.replace("no pytest", "not pytest")
+    found = detect_inversions(spoken, inverted)
+    assert len(found) == 1
+    assert found[0].said == "no pytest"
+    assert found[0].arrived == "not pytest"
+
+
+def test_the_corpus_still_carries_its_inversion():
+    """Pinned against the corpus rather than a synthetic sentence.
+
+    Synthetic tests pass on a rule that has stopped matching the real data, which is exactly
+    what happened: the backreference bug made every test here pass while the function
+    returned nothing at all.
+    """
+    from passthru.constraints import detect_inversions
+
+    views = from_corpus(json.loads(
+        (Path(__file__).parents[1] / "fixtures" / "corpus.json").read_text()
+    ))
+    inverted = {
+        (v.capture, v.auto_cleanup)
+        for v in views
+        if detect_inversions(v.spoken_text, v.pairs_text())
+    }
+    assert inverted == {("u1", "Light"), ("u1", "Medium")}
+    # And never at raw passthrough, which is what makes the cause identifiable at all.
+    assert not [key for key in inverted if key[1] == "None"]
+
+
+def test_the_inversion_check_does_not_cry_wolf():
+    """A false alarm here would be worse than no check.
+
+    A reader who sees an inverted prohibition once and is wrong about it will not look again,
+    so anything short of the specific unambiguous shape has to stay silent.
+    """
+    from passthru.constraints import detect_inversions
+
+    quiet = [
+        ("Keep the name score.py and never rename it", "Keep the name score.py and never rename it"),
+        ("no trailing whitespace", "  no trailing whitespace  "),
+        ("Do not use tabs", "Do not use tabs, use four spaces"),
+        # "not" present, but not inverting this prohibition.
+        ("no pytest, because it is slow", "it is not slow, so no pytest is fine"),
+    ]
+    for spoken, received in quiet:
+        assert detect_inversions(spoken, received) == [], (spoken, received)
+
+
+def test_the_live_checker_is_exported_by_the_page_scorer():
+    """The page has to expose compare() for the parity harness to check it at all.
+
+    If this is missing the harness exits rather than reporting a pass, which is the correct
+    direction to fail: a page that silently lost its comparison would look identical to a
+    page that never had one.
+    """
+    import shutil
+    import subprocess
+
+    node = shutil.which("node")
+    if node is None:
+        pytest.skip("node is not installed")
+    script = (
+        "const fs=require('fs'),vm=require('vm');"
+        "const s=fs.readFileSync('src/passthru/browser.js','utf8').split('\\n');"
+        "const cut=s.findIndex(l=>l.includes('// ---- wiring'));"
+        "const ctx={};vm.createContext(ctx);"
+        "vm.runInContext(s.slice(0,cut).join('\\n')+"
+        "'\\nglobalThis.compare=compare;globalThis.checkInversion=checkInversion;',ctx);"
+        "const spoken='Add a test file called score.py that keeps 99 lines, no pytest.';"
+        "const out=ctx.compare(spoken,{"
+        "'None':'Add a test file called score.py that keeps 99 lines, no pytest.',"
+        "'Light':'Add a test file called score.py that keeps ninety nine lines, not pytest.',"
+        "'Medium':'Add a test file called score.py that keeps ninety nine lines, not pytest.'});"
+        "if(!out.settings.includes('Light')) throw new Error('Light missing');"
+        "if(out.spread<=0) throw new Error('no spread');"
+        "if(out.inversions.length!==2) throw new Error('inversions: '+JSON.stringify(out.inversions));"
+        "console.log('ok');"
+    )
+    result = subprocess.run(
+        [node, "-e", script],
+        capture_output=True, text=True,
+        cwd=Path(__file__).resolve().parents[1],
+    )
+    assert result.returncode == 0, result.stderr
+    assert "ok" in result.stdout
+
+
+def test_one_pane_is_not_a_comparison():
+    """A spread from a single run would read as a clean result, which is a false claim.
+
+    The rule that carries this is in the page, so it is asserted against the page's own code
+    rather than a Python reimplementation of it.
+    """
+    import shutil
+    import subprocess
+
+    node = shutil.which("node")
+    if node is None:
+        pytest.skip("node is not installed")
+    script = (
+        "const fs=require('fs'),vm=require('vm');"
+        "const s=fs.readFileSync('src/passthru/browser.js','utf8').split('\\n');"
+        "const cut=s.findIndex(l=>l.includes('// ---- wiring'));"
+        "const ctx={};vm.createContext(ctx);"
+        "vm.runInContext(s.slice(0,cut).join('\\n')+"
+        "'\\nglobalThis.compare=compare;',ctx);"
+        "const one=ctx.compare('keep score.py under 200 lines',{'Light':'keep score.py'});"
+        "if(one.comparable) throw new Error('a single pane was called comparable');"
+        "if(!Number.isFinite(one.spread)) throw new Error('spread should still be a number');"
+        "const two=ctx.compare('keep score.py under 200 lines',"
+        "{'None':'keep score.py under 200 lines','Light':'keep score.py'});"
+        "if(!two.comparable) throw new Error('two panes should be comparable');"
+        "console.log('ok');"
+    )
+    result = subprocess.run(
+        [node, "-e", script],
+        capture_output=True, text=True,
+        cwd=Path(__file__).resolve().parents[1],
+    )
+    assert result.returncode == 0, result.stderr

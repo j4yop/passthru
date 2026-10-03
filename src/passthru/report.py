@@ -30,7 +30,7 @@ from .score import score_stage
 
 _MODULE_DIR = Path(__file__).resolve().parent
 
-CLAIMED_TESTS = 90
+CLAIMED_TESTS = 95
 """The number of tests this project claims on its report.
 
 Hardcoded, and therefore able to drift, which it did: the page said 58 for several commits
@@ -647,9 +647,44 @@ button#clear:hover {
   gap: 16px;
   margin: 16px 0;
 }
+/* Three settings side by side, since the whole point is comparing them. */
+.panes.panes-3 { grid-template-columns: repeat(3, 1fr); }
+.pane-wide { margin: 16px 0; }
+@media (max-width: 960px) {
+  .panes.panes-3 { grid-template-columns: 1fr; }
+}
 @media (max-width: 720px) {
   .panes { grid-template-columns: 1fr; }
 }
+
+/* ---- live checker verdict ---- */
+.verdict { margin-top: 20px; }
+.verdict-head {
+  display: flex; flex-wrap: wrap; gap: 12px; align-items: baseline;
+  padding-bottom: 10px; border-bottom: 1px solid var(--border-inner); margin-bottom: 14px;
+}
+.verdict-verdict { font-size: 17px; font-weight: 600; }
+.vbars { display: grid; gap: 10px; }
+.vbar { display: grid; grid-template-columns: 92px 1fr 64px; gap: 12px; align-items: center; }
+.vbar-label { font-size: 12px; letter-spacing: .06em; text-transform: uppercase; color: var(--fg-dim); }
+.vbar-track { height: 22px; background: var(--bg-input); border: 1px solid var(--border-inner); position: relative; }
+.vbar-fill { height: 100%; }
+.vbar-fill.kept { background: var(--accent); }
+.vbar-fill.warn { background: var(--warn); }
+.vbar-fill.bad { background: var(--bad); }
+.vbar-fill.gone { background: var(--bad); opacity: .45; }
+.vbar-num { font-variant-numeric: tabular-nums; font-size: 14px; text-align: right; }
+.vbar-lost { grid-column: 2 / 4; font-size: 12px; color: var(--fg-dim); margin-top: 2px; }
+
+.alert-invert {
+  border: 1px solid var(--bad); background: color-mix(in srgb, var(--bad) 12%, transparent);
+  padding: 12px 14px; margin: 14px 0; border-radius: 3px;
+}
+.alert-invert h4 { margin: 0 0 6px; color: var(--bad); font-size: 13px; letter-spacing: .06em; text-transform: uppercase; }
+.alert-invert code { color: var(--bad); }
+.refusal { border-left: 3px solid var(--fg-dim); padding: 8px 0 8px 14px; margin: 14px 0; color: var(--fg-dim); }
+.rec { border-left: 3px solid var(--accent); padding: 8px 0 8px 14px; margin: 14px 0; }
+#mic.recording { background: var(--bad); color: #fff; border-color: var(--bad); }
 .pane {
   background: var(--bg-input);
   border: 1px solid var(--border-inner);
@@ -1097,8 +1132,20 @@ def _presets(views: list[RunView]) -> list[RunView]:
 
 
 def _samples_script(views: list[RunView], spoken: str) -> str:
+    # bySetting lets one preset button fill all three panes from a single capture, which is
+    # the only way to see a comparison. u3 and u3d are missing a Medium run, so the map is
+    # per capture rather than assumed complete.
+    by_capture: dict[str, dict[str, str]] = {}
+    for view in views:
+        if view.capture:
+            by_capture.setdefault(view.capture, {})[view.auto_cleanup] = _sample_key(view)
+
     payload = {
-        _sample_key(v): {"said": v.spoken_text or spoken, "got": _received_text(v)}
+        _sample_key(v): {
+            "said": v.spoken_text or spoken,
+            "got": _received_text(v),
+            "bySetting": by_capture.get(v.capture, {}),
+        }
         for v in views
     }
     encoded = json.dumps(payload, ensure_ascii=False)
@@ -1152,43 +1199,67 @@ one has caught it being wrong.</p>
 
 
 def _try_it_section(views: list[RunView], spoken: str) -> str:
+    """The live checker: one utterance, three settings, scored in the page.
+
+    Three panes rather than one because a single comparison cannot say anything about which
+    setting to choose. The advice rule needs a sibling run of the *same* utterance at a
+    different setting to have any evidence to work from, which is why the published corpus
+    produces no recommendation at all: nothing in it has three complete passes. Here the
+    three panes are by construction the same utterance, so the tool can finally answer.
+    """
+    presets = _presets(views)
     buttons = "".join(
-        f'<button data-sample="{_e(_sample_key(v))}">Try {_e(v.auto_cleanup)}</button>'
-        for v in _presets(views)
+        f'<button data-sample="{_e(_sample_key(v))}">Load {_e(v.capture)}</button>'
+        for v in presets
     )
+    panes = []
+    for setting, hint in (
+        ("None", "raw passthrough"),
+        ("Light", "the product default"),
+        ("Medium", "heaviest rewrite"),
+    ):
+        panes.append(f"""<div class="pane">
+      <div class="pane-hdr">
+        <label for="got-{setting}">Auto Cleanup: {setting}</label>
+        <span class="stream-tag">SURFACE B &bull; {hint}</span>
+      </div>
+      <textarea id="got-{setting}" spellcheck="false"
+        placeholder="paste what Wispr delivered at this setting"></textarea>
+    </div>""")
+
     return f"""<div class="try-card">
-<h2 id="try">Measure your own dictation</h2>
-<p class="note">This is the same scorer the package uses, running here in the page.
-Paste or dictate what you <em>said</em> on the left and what the agent <em>received</em> on
-the right, and it reports what never made it across. Nothing is uploaded.</p>
-<div class="btnrow"><span class="btn-group-label">PRESETS:</span>{buttons}<button id="clear">Clear</button></div>
+<h2 id="try">Check your own dictation against all three settings</h2>
+<p class="note">Dictate the same thing into Wispr Flow three times, changing only the
+Auto Cleanup setting, and paste what each pass delivered. This is the same scorer the
+package uses, running here in the page, so the numbers match it exactly &mdash;
+<code>node scripts/check-parity.mjs</code> fails the build if they ever stop matching.
+Nothing you type is uploaded.</p>
+<div class="btnrow"><span class="btn-group-label">PRESETS FROM THE CORPUS:</span>{buttons}
+<button id="mic" type="button">Dictate the left box</button>
+<button id="clear" type="button">Clear</button></div>
 <div class="noscript noscript">
   Scoring in the page needs JavaScript. Every finding on this page is already written out
   above and below, so it reads without it.
 </div>
 <div class="try">
-  <div class="panes">
-    <div class="pane">
-      <div class="pane-hdr">
-        <label for="said">What you said</label>
-        <span class="stream-tag">SURFACE A &bull; SPOKEN PROMPT</span>
-      </div>
-      <textarea id="said" spellcheck="false"
-        placeholder="Keep it under 200 lines and name the file score.py.">{_e(spoken)}</textarea>
+  <div class="pane pane-wide">
+    <div class="pane-hdr">
+      <label for="said">What you said, the same words all three times</label>
+      <span class="stream-tag">SURFACE A &bull; SPOKEN PROMPT</span>
     </div>
-    <div class="pane">
-      <div class="pane-hdr">
-        <label for="got">What the agent received</label>
-        <span class="stream-tag">SURFACE C &bull; AGENT CONTEXT</span>
-      </div>
-      <textarea id="got" spellcheck="false"
-        placeholder="Keep it under 200 lines."></textarea>
-    </div>
+    <textarea id="said" spellcheck="false"
+      placeholder="Keep it under 200 lines and name the file score.py.">{_e(spoken)}</textarea>
+  </div>
+  <div class="panes panes-3">
+{chr(10).join("    " + pane for pane in panes)}
   </div>
   <div id="out"></div>
-  <p class="caption">Token survival here is identical to the Python package. Requirement
-  detection in the page is a deliberately coarser port and can under-report; the package is
-  the reference implementation, and it never over-reports a requirement as lost.</p>
+  <p class="caption">The <em>Dictate</em> button uses your browser's own speech recogniser,
+  which in Chrome and Safari sends audio to that vendor's servers to do the transcription.
+  That is the one thing on this page that leaves your machine, it is not Wispr's recogniser,
+  and it is not the package's either. Everything else runs here and nowhere else. Surface A
+  from a third engine is worth having precisely because the corpus shows a local recogniser
+  and Wispr disagreeing in both directions, but treat it as a witness rather than truth.</p>
 </div>
 </div>"""
 
