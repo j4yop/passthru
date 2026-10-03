@@ -197,8 +197,14 @@ def load_audio(audio_dir: Path, run_ids: list[str]) -> dict[str, str]:
     stick with no network, which is the reason the file has no external assets.
     """
     out: dict[str, str] = {}
+    root = audio_dir.resolve()
     for run_id in run_ids:
-        clip = audio_dir / f"{run_id}.mp3"
+        clip = (root / f"{run_id}.mp3").resolve()
+        # A run_id comes from a corpus, which is untrusted input. Refuse any id that
+        # climbs out of the audio directory rather than reading an arbitrary file and
+        # embedding it in a report that then gets published.
+        if root not in clip.parents:
+            continue
         if clip.exists():
             encoded = base64.b64encode(clip.read_bytes()).decode("ascii")
             out[run_id] = f"data:audio/mpeg;base64,{encoded}"
@@ -272,11 +278,14 @@ def _samples_script(views: list[RunView], spoken: str) -> str:
     payload = {
         v.run_id: {"said": spoken, "got": _received_text(v)} for v in views
     }
-    return (
-        "const SAMPLES = "
-        + json.dumps(payload, ensure_ascii=False)
-        + ";\n"
-    )
+    encoded = json.dumps(payload, ensure_ascii=False)
+    # A corpus is untrusted input: a note containing "</script>" would otherwise close
+    # the script element and let the remaining text execute as markup. Escaping these
+    # five characters as JSON unicode escapes is inert to the parser and makes it
+    # impossible for the payload to terminate the element.
+    for char in ("<", ">", "&", "\u2028", "\u2029"):
+        encoded = encoded.replace(char, f"\\u{ord(char):04x}")
+    return "const SAMPLES = " + encoded + ";\n"
 
 
 def _received_text(view: RunView) -> str:

@@ -305,3 +305,83 @@ def test_lost_helper_filters_and_sorts(views):
     assert lost(everything) == [
         r for r in sorted(everything, key=lambda r: (-r.severity, r.kind))
     ]
+
+
+# --- gaps found by mutation testing ------------------------------------------
+# Each block below corresponds to a mutation that passed the whole suite while the
+# code was broken. They are here so it cannot happen again unnoticed.
+
+def test_absolute_survival_is_pinned(views):
+    """The headline numbers must be asserted absolutely, not only relationally.
+
+    Mutation testing showed the suite could pass with every ratio shifted, because
+    the only checks compared runs against each other. `expected.survival_range` in
+    the corpus existed but nothing read it.
+    """
+    import json
+    from pathlib import Path
+
+    corpus = json.loads((Path(__file__).parents[1] / "fixtures" / "corpus.json").read_text())
+    declared = corpus["expected"]
+    for view in views:
+        low, high = declared[view.run_id]["survival_range"]
+        assert low <= view.ratio <= high, (
+            f"{view.run_id} survival {view.ratio:.3f} outside declared {declared[view.run_id]}"
+        )
+
+
+def test_clean_run_keeps_the_named_critical_tokens(views):
+    """`must_keep` is declared in the corpus and was likewise unenforced."""
+    import json
+    from pathlib import Path
+
+    corpus = json.loads((Path(__file__).parents[1] / "fixtures" / "corpus.json").read_text())
+    critical = set(corpus["critical_tokens"])
+    for view in views:
+        for token in corpus["expected"][view.run_id]["must_keep"]:
+            kept = {t.lower() for t in _surviving_tokens(view)}
+            assert token.lower() in kept, f"{view.run_id} lost {token}, which it must keep"
+
+
+def _surviving_tokens(view):
+    return [t for p in view.pairs for t in p.survival.survived]
+
+
+def test_pure_deletion_is_scored_as_total_loss():
+    """The `delete` opcode branch had no test at all: disabling it changed nothing
+    the suite could see, even though dropped tokens are this project's whole subject."""
+    result = score_stage("alpha beta gamma delta", "alpha")
+    assert result.ratio == 0.25
+    assert result.lost == ["beta", "gamma", "delta"]
+
+
+def test_deletion_and_replacement_are_distinguished():
+    # A token rewritten is lost; a token removed with nothing in its place is lost.
+    # Both count, and they are counted the same way, which the mutation above missed.
+    assert score_stage("a b c", "a b").lost == ["c"]
+    assert score_stage("a b c", "a x c").lost == ["b"]
+    assert score_stage("a b c", "a b c").lost == []
+
+
+def test_multiword_survival_threshold_is_enforced():
+    """Mutation: dropping the 70% overlap to 10% passed every test.
+
+    The threshold exists so a requirement that arrived intact is not reported lost,
+    and one that lost its load-bearing word is. Both sides need pinning: a threshold
+    that is too low manufactures false losses, too high hides real ones.
+    """
+    spoken = "Do not touch the alignment code"
+    reqs = extract(spoken)
+    assert reqs, "expected a prohibition to be extracted"
+
+    # All significant words present: survives. Catches a threshold above 1.0.
+    assert mark_lost(reqs, "do not touch the alignment code") == [
+        r._replace(survived=True) for r in reqs
+    ]
+
+    # One of two significant words gone: 0.5 overlap, below 0.7, so it is a loss.
+    # Catches a threshold of 0.1, which would wrongly call this arrived.
+    assert any(not r.survived for r in mark_lost(reqs, "do not touch the code"))
+
+    # Nothing of it arrived: still a loss.
+    assert any(not r.survived for r in mark_lost(reqs, "something else entirely"))
