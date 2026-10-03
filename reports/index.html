@@ -778,6 +778,7 @@ ul.lim li:last-child {
     <a href="#distribution" class="nav-link">Distribution</a>
     <a href="#try" class="nav-link">Lab Scorer</a>
     <a href="#utterances" class="nav-link">Utterances</a>
+    <a href="#checked" class="nav-link">Checks</a>
     <a href="#limitations" class="nav-link">Limitations</a>
     <a href="https://github.com/j4yop/passthru" target="_blank" rel="noopener noreferrer" class="nav-link ext">GitHub ↗</a>
   </nav>
@@ -1680,6 +1681,34 @@ default setting is expanded.</p>
     </div>
   </details>
 
+<h2 id="checked">How the scorer was checked</h2>
+<p class="note">The figures above come from a scorer. Three checks run against it, and each
+one has caught it being wrong.</p>
+<div class="cards">
+  <div class="card">
+    <h3>Mutation testing</h3>
+    <p>Thirteen deliberate faults are injected into the tokenizer and requirement matcher,
+    one at a time, and the suite has to fail on every one. All thirteen are caught. Reading
+    the code finds what you already know; this found three faults a review had missed.</p>
+  </div>
+  <div class="card">
+    <h3>The page is checked against the package</h3>
+    <p>This page embeds a second implementation of the scorer so you can use it. A test
+    requires the two to agree on every run in the corpus, so the page cannot quote a number
+    the package does not produce.</p>
+  </div>
+  <div class="card">
+    <h3>The scorer was wrong twice, and both are fixed</h3>
+    <p>Escaped identifiers were scored as lost filenames, and spelled-out numbers were
+    scored as losses &mdash; worse than losses, since <code>99</code> against
+    <code>ninety nine</code> is two tokens against one and could never match. Both inflated
+    every figure on this page. Fixing them moved the numbers, which is why the ones above
+    differ from the earlier version of this report.</p>
+  </div>
+</div>
+<p class="note">90 tests. <code>pytest</code>,
+<code>node scripts/check-parity.mjs</code>, <code>python scripts/mutation.py</code>.</p>
+
 <h2 id="limitations">What this evidence cannot tell you</h2>
 <div class="warnbox">
   <ul class="lim">
@@ -1689,7 +1718,7 @@ default setting is expanded.</p>
 
 <footer class="footer-wrap">
   <div class="footer-meta">
-    <span>BUILT BY VOICE &bull; WISPR FLOW [CLEANUP: NONE] &bull; 58 MUTATION-PINNED TESTS</span>
+    <span>BUILT BY VOICE &bull; WISPR FLOW [CLEANUP: NONE] &bull; 90 TESTS, 13 MUTATIONS CAUGHT &bull; PAGE SCORER CHECKED AGAINST THE PACKAGE</span>
   </div>
   <div class="footer-links">
     <a href="https://github.com/j4yop/passthru" target="_blank" rel="noopener noreferrer">Source Code</a>

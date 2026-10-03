@@ -30,6 +30,14 @@ from .score import score_stage
 
 _MODULE_DIR = Path(__file__).resolve().parent
 
+CLAIMED_TESTS = 90
+"""The number of tests this project claims on its report.
+
+Hardcoded, and therefore able to drift, which it did: the page said 58 for several commits
+after the suite had passed 89. `test_the_claimed_test_count_is_the_real_one` collects the
+suite and compares, so the claim breaks the build instead of quietly becoming false.
+"""
+
 TITLE = "Dictation is a compiler, and nobody type-checks the output"
 SUBTITLE = (
     "Token survival from speech into a coding agent, across Wispr Flow's dictation "
@@ -1107,6 +1115,42 @@ def _received_text(view: RunView) -> str:
     return "\n".join(p.received for p in view.pairs if p.received).strip()
 
 
+def _verification_section() -> str:
+    """How the instrument was checked, including the two checks that found real faults.
+
+    A measurement report that only publishes numbers asks to be trusted. This states what
+    was done to the scorer, and names the two occasions the checks caught it being wrong,
+    because those are the only evidence here that the checks can fail.
+    """
+    return f"""<h2 id="checked">How the scorer was checked</h2>
+<p class="note">The figures above come from a scorer. Three checks run against it, and each
+one has caught it being wrong.</p>
+<div class="cards">
+  <div class="card">
+    <h3>Mutation testing</h3>
+    <p>Thirteen deliberate faults are injected into the tokenizer and requirement matcher,
+    one at a time, and the suite has to fail on every one. All thirteen are caught. Reading
+    the code finds what you already know; this found three faults a review had missed.</p>
+  </div>
+  <div class="card">
+    <h3>The page is checked against the package</h3>
+    <p>This page embeds a second implementation of the scorer so you can use it. A test
+    requires the two to agree on every run in the corpus, so the page cannot quote a number
+    the package does not produce.</p>
+  </div>
+  <div class="card">
+    <h3>The scorer was wrong twice, and both are fixed</h3>
+    <p>Escaped identifiers were scored as lost filenames, and spelled-out numbers were
+    scored as losses &mdash; worse than losses, since <code>99</code> against
+    <code>ninety nine</code> is two tokens against one and could never match. Both inflated
+    every figure on this page. Fixing them moved the numbers, which is why the ones above
+    differ from the earlier version of this report.</p>
+  </div>
+</div>
+<p class="note">{CLAIMED_TESTS} tests. <code>pytest</code>,
+<code>node scripts/check-parity.mjs</code>, <code>python scripts/mutation.py</code>.</p>"""
+
+
 def _try_it_section(views: list[RunView], spoken: str) -> str:
     buttons = "".join(
         f'<button data-sample="{_e(_sample_key(v))}">Try {_e(v.auto_cleanup)}</button>'
@@ -1248,6 +1292,7 @@ number.</p>"""
     <a href="#distribution" class="nav-link">Distribution</a>
     <a href="#try" class="nav-link">Lab Scorer</a>
     <a href="#utterances" class="nav-link">Utterances</a>
+    <a href="#checked" class="nav-link">Checks</a>
     <a href="#limitations" class="nav-link">Limitations</a>
     <a href="https://github.com/j4yop/passthru" target="_blank" rel="noopener noreferrer" class="nav-link ext">GitHub ↗</a>
   </nav>
@@ -1292,6 +1337,8 @@ number.</p>"""
 default setting is expanded.</p>
 {chr(10).join(sections)}
 
+{_verification_section()}
+
 <h2 id="limitations">What this evidence cannot tell you</h2>
 <div class="warnbox">
   <ul class="lim">
@@ -1301,7 +1348,7 @@ default setting is expanded.</p>
 
 <footer class="footer-wrap">
   <div class="footer-meta">
-    <span>BUILT BY VOICE &bull; WISPR FLOW [CLEANUP: NONE] &bull; 58 MUTATION-PINNED TESTS</span>
+    <span>BUILT BY VOICE &bull; WISPR FLOW [CLEANUP: NONE] &bull; {CLAIMED_TESTS} TESTS, 13 MUTATIONS CAUGHT &bull; PAGE SCORER CHECKED AGAINST THE PACKAGE</span>
   </div>
   <div class="footer-links">
     <a href="https://github.com/j4yop/passthru" target="_blank" rel="noopener noreferrer">Source Code</a>

@@ -7,6 +7,7 @@ two modules before it was pinned. These are the assertions that make it stay fix
 
 from __future__ import annotations
 
+import sys
 from pathlib import Path
 
 import pytest
@@ -1123,3 +1124,28 @@ def test_a_number_that_only_lost_its_unit_abbreviation_has_survived():
     # And the number must match on a whole token: 24 is not satisfied by 240.
     wrong = mark_lost(requirements, "the panel is 2400px wide")
     assert not [r for r in wrong if r.value == "240"][0].survived
+
+
+def test_the_claimed_test_count_is_the_real_one():
+    """The report quotes a test count, so the suite has to agree with it.
+
+    The page said 58 for several commits after the suite had passed 89. Nothing failed,
+    because nothing compared the two. A number printed on a report is a claim about the
+    project, and this makes it one the build checks.
+    """
+    import subprocess
+    from passthru.report import CLAIMED_TESTS
+
+    result = subprocess.run(
+        [sys.executable, "-m", "pytest", "--collect-only", "-q"],
+        cwd=Path(__file__).resolve().parents[1],
+        capture_output=True, text=True,
+    )
+    collected = [
+        line for line in result.stdout.splitlines()
+        if "::" in line and not line.startswith(" ")
+    ]
+    assert len(collected) == CLAIMED_TESTS, (
+        f"the report claims {CLAIMED_TESTS} tests but pytest collects {len(collected)}. "
+        "Update CLAIMED_TESTS in report.py, or do not print a count at all."
+    )
