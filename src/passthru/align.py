@@ -122,16 +122,28 @@ def align_utterances(
         elif tag == "replace":
             # Pair positionally inside the span and compare. A spoken token that has no
             # identical counterpart at its own position was overwritten, not moved.
+            #
+            # The received span is attributed either way. It used to be attributed only on an
+            # exact match, which discarded delivered text wholesale: at u2 Light, "8 pixels"
+            # was replaced by "8px", the tokens differ, so the span was dropped and "8px"
+            # ended up belonging to no utterance at all. The requirement matcher then had
+            # nothing to find and reported the constraint as lost, when it had arrived.
+            #
+            # The token loss is still recorded. `8` genuinely did not survive as a token, and
+            # `8px` genuinely did arrive; those are two different questions and the pair now
+            # answers both.
             for offset, spoken_index in enumerate(range(i1, i2)):
                 token, _, _, utterance_index = spans[spoken_index]
                 received_index = j1 + offset
-                if received_index < j2 and received_texts[received_index] == token:
+                if received_index < j2:
                     buckets.setdefault(utterance_index, []).append(
                         (
                             received_tokens[received_index][1],
                             received_tokens[received_index][2],
                         )
                     )
+                    if received_texts[received_index] != token:
+                        lost.setdefault(utterance_index, []).append(token)
                 else:
                     lost.setdefault(utterance_index, []).append(token)
         elif tag == "delete":
@@ -139,6 +151,21 @@ def align_utterances(
                 token, _, _, utterance_index = spans[spoken_index]
                 lost.setdefault(utterance_index, []).append(token)
         # "insert" is new text the speaker never said. Not a loss.
+
+    # Where the received text ends. Text after the last matched token belongs to the last
+    # pair, because nothing follows it to claim otherwise.
+    #
+    # Dropping it produced a false loss that the published table showed: at u2 Light the
+    # delivered text ends "border radius is 8px", but "8px" matched no spoken token, so the
+    # aligner discarded it, the pair had no trace of it, and the requirement matcher
+    # reported `8` as lost. The requirement had arrived. It also broke the segmentation
+    # invariance this module's own docstring promises.
+    last_end = max((end for chunks in buckets.values() for _, end in chunks), default=0)
+    trailing_owner = max(
+        (index for index, chunks in buckets.items() if chunks),
+        key=lambda i: max(end for _, end in buckets[i]),
+        default=None,
+    )
 
     pairs: list[Pair] = []
     for index, utterance in enumerate(utterances):
@@ -154,6 +181,8 @@ def align_utterances(
                     merged.append(received_clean[cursor_at:start])
                 merged.append(received_clean[start:end])
                 cursor_at = end
+            if index == trailing_owner and last_end < len(received_clean):
+                merged.append(received_clean[last_end:])
             received_piece = " ".join("".join(merged).split())
         else:
             received_piece = ""

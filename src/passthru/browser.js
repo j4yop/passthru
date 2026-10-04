@@ -441,6 +441,8 @@ function compare(spoken, receivedBySetting) {
 
 (function () {
   const SETTINGS = ['None', 'Light', 'Medium'];
+// Mirrors capture.LIVE_SETTINGS. check-parity.mjs compares the two lists so a rename
+// cannot leave this describing a setting that no longer exists.
   const said = document.getElementById('said');
   const out = document.getElementById('out');
   const boxes = {};
@@ -457,7 +459,7 @@ function compare(spoken, receivedBySetting) {
     const filled = SETTINGS.filter(s => boxes[s].value.trim());
     return filled.length < 2
       ? `<p class="hint">Fill at least two settings to compare them. ` +
-        `${filled.length} of 3 pasted so far &mdash; one pane on its own cannot say which ` +
+        `${filled.length} of ${SETTINGS.length} pasted so far &mdash; one pane cannot say which ` +
         `setting is safer, only what that one run lost.</p>`
       : null;
   }
@@ -555,49 +557,8 @@ function compare(spoken, receivedBySetting) {
     run(); said.focus();
   });
 
-  // Optional dictation of the spoken side, via the browser's own recogniser.
-  //
-  // The disclosure matters: in Chrome and Safari this sends audio to that vendor's servers.
-  // It is not Wispr's recogniser and not the package's, which is the reason it is worth
-  // having at all. The corpus already records a local recogniser and Wispr disagreeing in
-  // both directions, so a third witness is a genuine cross-check rather than a fallback.
-  // Render before the microphone is considered. This used to sit at the very end of the
-  // wrapper, after an early `return` for browsers without speech recognition, so on any
-  // such browser the checker rendered nothing at all until the reader typed something.
-  // Nothing was wrong with the scorer; the page just never asked it a question.
+  // Render on load. Removing the dictation button above also removed this call, which
+  // quietly took the initial render with it -- the same fault it was originally written to
+  // fix, reintroduced by the edit that removed it.
   run();
-
-  const mic = document.getElementById('mic');
-  const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-  if (!mic) return;
-  if (!Recognition) {
-    mic.disabled = true;
-    mic.title = 'This browser has no speech recognition. Type the prompt instead.';
-    return;
-  }
-  let recogniser = null;
-  mic.addEventListener('click', () => {
-    if (recogniser) { recogniser.stop(); return; }
-    recogniser = new Recognition();
-    recogniser.lang = document.documentElement.lang || 'en-US';
-    recogniser.interimResults = false;
-    recogniser.continuous = false;
-    mic.classList.add('recording');
-    mic.textContent = 'Listening… click to stop';
-    recogniser.onresult = event => {
-      const text = event.results[event.results.length - 1][0].transcript;
-      said.value = said.value.trim() ? said.value.trim() + ' ' + text : text;
-      run();
-    };
-    recogniser.onerror = event => {
-      out.innerHTML = `<p class="hint">Speech recognition failed (${esc(event.error)}). ` +
-        'Type the prompt instead; nothing else on this page needs the microphone.</p>';
-    };
-    recogniser.onend = () => {
-      recogniser = null;
-      mic.classList.remove('recording');
-      mic.textContent = 'Dictate the left box';
-    };
-    recogniser.start();
-  });
 })();

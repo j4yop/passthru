@@ -26,14 +26,6 @@
       "must_keep": []
     }
   },
-  "critical_tokens": [
-    "score.py",
-    "200",
-    "lines",
-    "scratch",
-    "levenshtein",
-    "difflib"
-  ],
   "captures": [
     {
       "id": "u1",

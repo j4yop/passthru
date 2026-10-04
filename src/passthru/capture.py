@@ -261,6 +261,18 @@ def summarise(capture: Capture, spoken: str, received: str) -> str:
 
 
 LIVE_SETTINGS = ("None", "Light", "Medium")
+"""The Auto Cleanup levels this tool knows about, safest first.
+
+Defined once. It was duplicated in four places -- the report template, the browser scorer,
+the parity harness and the CLI -- so a rename would silently leave three of them describing a
+setting that no longer existed, and the parity harness would skip captures rather than fail.
+"""
+
+PRODUCT_DEFAULT = "Light"
+"""The level Wispr Flow ships as, and so the one a user is on without choosing anything.
+
+Named because the report calls it the product default in several places, and because it is
+the setting an inversion was measured against."""
 """The order a live session walks, safest first.
 
 None goes first so that if the session is abandoned after one pass there is still a baseline
@@ -293,7 +305,7 @@ def format_live_verdict(outcome: dict) -> str:
         lines.append("")
     lines.append("  setting   token survival")
     for name in outcome["settings"]:
-        marker = "  (product default)" if name == "Light" else ""
+        marker = "  (product default)" if name == PRODUCT_DEFAULT else ""
         lines.append(f"  {name:<9} {ratios[name]:6.1f}%{marker}")
 
     if outcome["comparable"]:

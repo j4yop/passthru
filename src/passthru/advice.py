@@ -265,7 +265,7 @@ def compare_settings(
     # Canonical order, safest first, so two sessions print in the same sequence and a diff
     # of two captures is readable. Keys the caller supplies that are not settings are kept
     # afterwards rather than dropped, so a typo is visible instead of silently ignored.
-    from .capture import LIVE_SETTINGS
+    from .capture import LIVE_SETTINGS, PRODUCT_DEFAULT
 
     filled = {name: text for name, text in received_by_setting.items() if (text or "").strip()}
     settings = [name for name in LIVE_SETTINGS if name in filled]
@@ -289,7 +289,7 @@ def compare_settings(
             spoken=len(score_stage(spoken, received_by_setting[name]).survived)
             + len(score_stage(spoken, received_by_setting[name]).lost),
             pairs=align_utterances(spoken, received_by_setting[name]),
-            lost_requirements=lost_by_setting[name], is_default=name == "Light",
+            lost_requirements=lost_by_setting[name], is_default=name == PRODUCT_DEFAULT,
             capture=capture_id, spoken_text=spoken,
         )
         for name in settings

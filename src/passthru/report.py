@@ -6,11 +6,11 @@ Design constraints, all of them deliberate:
   machine with no network. A report that needs a CDN to be read is not a report.
 - **Legible in both schemes** via `prefers-color-scheme` and CSS custom properties, so
   nothing depends on a media query being honoured.
-- **The limitations are on the page.** n is one per setting, and reading pace was not
+- **The limitations are on the page.** n is small and uneven per setting, and reading pace was not
   matched across runs. Both are stated in a dedicated block, not buried in a footnote.
   A measurement tool that hides its own weaknesses is the failure mode this project
   exists to criticise, so the report has to hold itself to the standard it argues for.
-- **90 seconds to the point.** The three survival bars are the top of the page. The
+- **90 seconds to the point.** One survival bar per run is the top of the page. The
   per-utterance detail sits under `<details>`, which collapses without any script.
 """
 
@@ -25,17 +25,57 @@ from pathlib import Path
 from typing import Any
 
 from .align import Pair, aggregate, align_utterances
-from .constraints import Requirement, extract, lost, mark_lost
+from .constraints import Requirement, detect_inversions, extract, lost, mark_lost
 from .score import score_stage
 
 _MODULE_DIR = Path(__file__).resolve().parent
 
-CLAIMED_TESTS = 103
+CLAIMED_TESTS = 105
 """The number of tests this project claims on its report.
 
 Hardcoded, and therefore able to drift, which it did: the page said 58 for several commits
 after the suite had passed 89. `test_the_claimed_test_count_is_the_real_one` collects the
 suite and compares, so the claim breaks the build instead of quietly becoming false.
+"""
+
+from .capture import LIVE_SETTINGS, PRODUCT_DEFAULT
+
+# Editorial descriptions of each level. These are claims about the product, not measurements,
+# so they are written down once here rather than inlined at each use.
+def _mutation_count() -> str:
+    """How many faults `scripts/mutation.py` injects, read from the script.
+
+    Counted from the file rather than written here, because a number on this page that no
+    code path produces is the exact failure this project criticises. If the script is
+    missing the claim is dropped rather than guessed: an absent number is honest, a stale
+    one is not.
+    """
+    script = Path(__file__).resolve().parents[2] / "scripts" / "mutation.py"
+    try:
+        source = script.read_text(encoding="utf-8")
+    except OSError:
+        return "some"
+    start = source.find("MUTATIONS: list[tuple[str, str, str, str, str]] = [")
+    if start == -1:
+        return "some"
+    body = source[start:]
+    entries = body.count("\n    (\n        \"")
+    return str(entries) if entries else "some"
+
+
+MUTATION_COUNT = _mutation_count()
+
+SETTING_NOTE = {
+    "None": "no rewriting at all",
+    "Light": "the product default",
+    "Medium": "the heaviest rewrite",
+}
+HEADLINE_LIMIT = 4
+"""How many lost requirements the headline box names before it counts the rest.
+
+A cap rather than a full list because a run that lost fifteen things should not push the
+rest of the page down. The remainder is counted rather than silently dropped, which is what
+the earlier version did.
 """
 
 TITLE = "Dictation is a compiler, and nobody type-checks the output"
@@ -908,7 +948,7 @@ def _score_one(
         spoken=sum(p.survival.spoken for p in pairs),
         pairs=pairs,
         lost_requirements=lost(requirements),
-        is_default=run.get("auto_cleanup", "").lower() == "light",
+        is_default=run.get("auto_cleanup", "").lower() == PRODUCT_DEFAULT.lower(),
         capture=capture,
         spoken_text=spoken,
     )
@@ -978,7 +1018,7 @@ def distribution(views: list[RunView]) -> list[dict[str, Any]]:
 
 
 def _setting_rank(setting: str) -> int:
-    order = {"none": 0, "light": 1, "medium": 2}
+    order = {name.lower(): index for index, name in enumerate(LIVE_SETTINGS)}
     return order.get(setting.lower(), 3)
 
 
@@ -1175,9 +1215,11 @@ one has caught it being wrong.</p>
 <div class="cards">
   <div class="card">
     <h3>Mutation testing</h3>
-    <p>Thirteen deliberate faults are injected into the tokenizer and requirement matcher,
-    one at a time, and the suite has to fail on every one. All thirteen are caught. Reading
-    the code finds what you already know; this found three faults a review had missed.</p>
+    <p>{MUTATION_COUNT} deliberate faults are injected into the tokenizer, the requirement
+    matcher, the aligner and the advice rule, one at a time, and the suite has to fail on
+    each. Reading the code finds what you already know; this found faults a review had
+    missed, including two in the harness that produced a confident and completely wrong
+    summary.</p>
   </div>
   <div class="card">
     <h3>The page is checked against the package</h3>
@@ -1204,7 +1246,8 @@ def _try_it_section(views: list[RunView], spoken: str) -> str:
     Three panes rather than one because a single comparison cannot say anything about which
     setting to choose. The advice rule needs a sibling run of the *same* utterance at a
     different setting to have any evidence to work from, which is why the published corpus
-    produces no recommendation at all: nothing in it has three complete passes. Here the
+    produces no recommendation at all: across its captures, every requirement one setting
+    lost was either a number or a filename that the other settings lost too. Here the
     three panes are by construction the same utterance, so the tool can finally answer.
     """
     presets = _presets(views)
@@ -1213,11 +1256,8 @@ def _try_it_section(views: list[RunView], spoken: str) -> str:
         for v in presets
     )
     panes = []
-    for setting, hint in (
-        ("None", "raw passthrough"),
-        ("Light", "the product default"),
-        ("Medium", "heaviest rewrite"),
-    ):
+    for setting in LIVE_SETTINGS:
+        hint = SETTING_NOTE.get(setting, "dictation cleanup")
         panes.append(f"""<div class="pane">
       <div class="pane-hdr">
         <label for="got-{setting}">Auto Cleanup: {setting}</label>
@@ -1235,7 +1275,6 @@ package uses, running here in the page, so the numbers match it exactly &mdash;
 <code>node scripts/check-parity.mjs</code> fails the build if they ever stop matching.
 Nothing you type is uploaded.</p>
 <div class="btnrow"><span class="btn-group-label">PRESETS FROM THE CORPUS:</span>{buttons}
-<button id="mic" type="button">Dictate the left box</button>
 <button id="clear" type="button">Clear</button></div>
 <div class="noscript noscript">
   Scoring in the page needs JavaScript. Every finding on this page is already written out
@@ -1254,12 +1293,14 @@ Nothing you type is uploaded.</p>
 {chr(10).join("    " + pane for pane in panes)}
   </div>
   <div id="out"></div>
-  <p class="caption">The <em>Dictate</em> button uses your browser's own speech recogniser,
-  which in Chrome and Safari sends audio to that vendor's servers to do the transcription.
-  That is the one thing on this page that leaves your machine, it is not Wispr's recogniser,
-  and it is not the package's either. Everything else runs here and nowhere else. Surface A
-  from a third engine is worth having precisely because the corpus shows a local recogniser
-  and Wispr disagreeing in both directions, but treat it as a witness rather than truth.</p>
+  <p class="caption">Everything on this page runs in your browser and nothing you type leaves
+  your machine. That used to have an exception: a dictation button that used the browser's
+  own speech recogniser, which in Chrome and Safari uploads audio to that vendor's servers.
+  It was removed rather than disclosed. A page arguing that dictation tooling should be
+  auditable has no business being the one part that phones a third party &mdash; and the
+  three settings still have to be dictated into Wispr Flow by hand, so the button never
+  removed a step, only the privacy claim.</p>
+</div></p>
 </div>
 </div>"""
 
@@ -1273,9 +1314,17 @@ def render(views: list[RunView], limitations: list[str] | None = None,
 
     headline = ""
     if default_view is not None and default_view.lost_requirements:
-        names = ", ".join(
-            f"<code>{_e(r.value)}</code>" for r in default_view.lost_requirements[:4]
-        )
+        # Deduplicated, because requirement extraction runs per utterance and the same value
+        # can be lost in more than one of them. Un-deduplicated it printed the headline as
+        # "3.10, 3.10", which reads as two different things and is one.
+        seen_values: list[str] = []
+        for requirement in default_view.lost_requirements:
+            if requirement.value not in seen_values:
+                seen_values.append(requirement.value)
+        shown = seen_values[:HEADLINE_LIMIT]
+        names = ", ".join(f"<code>{_e(v)}</code>" for v in shown)
+        if len(seen_values) > len(shown):
+            names += f" &mdash; and {len(seen_values) - len(shown)} more"
         headline = f"""
     <div class="headline-box">
       <p class="note">At the setting Wispr Flow ships as the default, the requirements
@@ -1309,10 +1358,61 @@ def render(views: list[RunView], limitations: list[str] | None = None,
 
     stats = distribution(views)
     capture_count = len({v.capture for v in views if v.capture})
+
+    # The most serious thing in the corpus, counted rather than asserted.
+    #
+    # This card used to be the literal text "0 ERRORS / on u1 both rewrite settings turned
+    # no pytest into not pytest". It sat at the top of the page, it named a specific capture,
+    # and `detect_inversions` was never called from this module at all -- so it could not have
+    # been wrong and could not have been right. A number with no code path behind it is
+    # falsifiable, and this one was falsifiable only by deleting it.
+    inversions: list[tuple[str, str, str, str]] = []
+    for view in views:
+        for inversion in detect_inversions(view.spoken_text or spoken, view.pairs_text()):
+            inversions.append(
+                (view.capture, view.auto_cleanup, inversion.said, inversion.arrived)
+            )
+    inversion_count = len(inversions)
+    plural = "" if inversion_count == 1 else "S"
+    if not inversions:
+        inversion_summary = "No prohibition was inverted in these captures"
+    else:
+        _ids = sorted({row[0] for row in inversions})
+        _settings = sorted({row[1] for row in inversions}, key=lambda s: s.lower())
+        inversion_summary = (
+            "Nothing raised &bull; on "
+            + _e(", ".join(_ids))
+            + " at "
+            + _e(" and ".join(_settings))
+            + f", <code>{_e(inversions[0][2])}</code> arrived as "
+            + f"<code>{_e(inversions[0][3])}</code>"
+        )
+
+    # Per-setting counts, not a single total. The two differ whenever a capture is missing a
+    # setting, and using one number for both made the page contradict its own table a few
+    # hundred pixels below: it said "6 utterances captured at each setting" while the table
+    # read n=5 for two of the three settings.
+    per_setting = {
+        entry["setting"]: entry["n"]
+        for entry in stats
+    }
+    incomplete = sorted(s for s, n in per_setting.items() if n != capture_count)
+    coverage = (
+        f"{capture_count} utterances, captured at "
+        + ", ".join(f"{n} at {s}" for s, n in per_setting.items())
+        + (
+            " &mdash; not every utterance reached every setting, so n differs by row and the "
+            "rows are not directly comparable."
+            if incomplete
+            else ", at every setting."
+        )
+    )
     if capture_count > 1:
         rows = []
         for entry in stats:
-            default = ' <small>product default</small>' if entry["is_default"] else ""
+            default = (
+                ' <small>product default</small>' if entry["is_default"] else ""
+            )
             worst = ", ".join(f"{k} in {n}/{entry['n']}" for k, n in entry["lost_counts"][:3])
             rows.append(
                 f"""      <tr>
@@ -1325,8 +1425,7 @@ def render(views: list[RunView], limitations: list[str] | None = None,
       </tr>"""
             )
         distribution_block = f"""<h2 id="distribution">Across every utterance</h2>
-<p class="note">{capture_count} utterances captured at each setting. This is a
-distribution, not a single demonstration.</p>
+<p class="note">{coverage} This is a distribution, not a single demonstration.</p>
 <div class="bars">
   <table>
     <thead><tr><th>Auto Cleanup</th><th>n</th><th>min</th><th>median</th><th>max</th>
@@ -1376,20 +1475,19 @@ number.</p>"""
 
   <div class="hero-metrics">
     <div class="metric-card">
-      <div class="metric-label">RAW PASSTHROUGH (NONE)</div>
-      <div class="metric-value kept">{_e(_spread(views, 'None'))}</div>
-      <div class="metric-sub">{_e(_spread_sub(views, 'None'))}</div>
+      <div class="metric-label">RAW PASSTHROUGH ({LIVE_SETTINGS[0].upper()})</div>
+      <div class="metric-value kept">{_e(_spread(views, LIVE_SETTINGS[0]))}</div>
+      <div class="metric-sub">{_e(_spread_sub(views, LIVE_SETTINGS[0]))}</div>
     </div>
     <div class="metric-card alert">
-      <div class="metric-label">PRODUCT DEFAULT (LIGHT)</div>
-      <div class="metric-value warn">{_e(_spread(views, 'Light'))}</div>
-      <div class="metric-sub">{_e(_spread_sub(views, 'Light'))}</div>
+      <div class="metric-label">PRODUCT DEFAULT ({PRODUCT_DEFAULT.upper()})</div>
+      <div class="metric-value warn">{_e(_spread(views, PRODUCT_DEFAULT))}</div>
+      <div class="metric-sub">{_e(_spread_sub(views, PRODUCT_DEFAULT))}</div>
     </div>
     <div class="metric-card alert-high">
       <div class="metric-label">THE SILENT FAILURE</div>
-      <div class="metric-value gone">0 ERRORS</div>
-      <div class="metric-sub">Nothing raised · on u1 both rewrite settings turned
-        <code>no pytest</code> into <code>not pytest</code></div>
+      <div class="metric-value gone">{inversion_count} INVERSION{plural}</div>
+      <div class="metric-sub">{inversion_summary}</div>
     </div>
   </div>
 </section>
@@ -1419,7 +1517,7 @@ default setting is expanded.</p>
 
 <footer class="footer-wrap">
   <div class="footer-meta">
-    <span>BUILT BY VOICE &bull; WISPR FLOW [CLEANUP: NONE] &bull; {CLAIMED_TESTS} TESTS, 13 MUTATIONS CAUGHT &bull; PAGE SCORER CHECKED AGAINST THE PACKAGE</span>
+    <span>BUILT BY VOICE &bull; WISPR FLOW [CLEANUP: NONE] &bull; {CLAIMED_TESTS} TESTS, {MUTATION_COUNT} MUTATIONS &bull; PAGE SCORER CHECKED AGAINST THE PACKAGE</span>
   </div>
   <div class="footer-links">
     <a href="https://github.com/j4yop/passthru" target="_blank" rel="noopener noreferrer">Source Code</a>
@@ -1449,7 +1547,7 @@ def write(views: list[RunView], path: Path, limitations: list[str] | None = None
 
 
 DEFAULT_LIMITATIONS = [
-    "One utterance per setting. This shows the effect is real and large; it is not a "
+    "Very few utterances. This shows the effect is real; it is not a "
     "benchmark, and the percentages should not be quoted as one.",
     "Reading pace was not matched across runs, so emphasis could have influenced which "
     "constraints survived. This is the most likely confound and it is uncontrolled.",

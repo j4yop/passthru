@@ -162,8 +162,52 @@ def test_received_slice_does_not_include_preceding_utterances():
     # Regression: the received cell started at offset zero, so every row repeated
     # all the text before it.
     pairs = align_utterances("Alpha one. Bravo two.", "Alpha one. Bravo two.")
-    # The slice ends at the last matched token, so trailing punctuation is not included.
-    assert pairs[1].received.strip() == "Bravo two"
+    assert "Alpha" not in pairs[1].received
+    assert pairs[1].received.strip() == "Bravo two."
+
+
+def test_delivered_text_is_attributed_even_when_it_does_not_match_verbatim():
+    """A replaced token still arrived, and the pair has to show it.
+
+    `8 pixels` delivered as `8px` is a genuine token loss, because `8` did not survive as a
+    token. It is not a loss of the *text*: `8px` reached the agent, and a requirement matcher
+    that cannot see it reports a constraint that arrived as lost.
+
+    Discarding unmatched spans hid `8px` from every pair, which is why the published table
+    showed `8` lost at u2 Light when the number was sitting right there in the delivered text.
+    """
+    pairs = align_utterances(
+        "The gap should be 1rem and the border radius is 8 pixels.",
+        "The gap should be 1rem and the border radius is 8px.",
+    )
+    delivered = " ".join(p.received for p in pairs)
+    assert "8px" in delivered, delivered
+    # And the token loss is still reported, because it is a real one.
+    lost = [token for pair in pairs for token in pair.survival.lost]
+    assert "8" in lost
+    assert "pixels" in lost
+
+
+def test_every_delivered_token_belongs_to_some_pair():
+    """Delivered text must not fall between pairs.
+
+    Checked across the whole corpus rather than a synthetic sentence, because the bug this
+    covers only appeared on real capture text.
+    """
+    from passthru.align import align_utterances as align
+
+    corpus = json.loads(
+        (Path(__file__).parents[1] / "fixtures" / "corpus.json").read_text()
+    )
+    stranded = []
+    for capture in corpus["captures"]:
+        for run in capture["runs"]:
+            pairs = align(capture["spoken"], run["received"])
+            joined = {t for t in tokenize(" ".join(p.received for p in pairs))}
+            missing = set(tokenize(run["received"])) - joined
+            if missing:
+                stranded.append((capture["id"], run["auto_cleanup"], sorted(missing)))
+    assert not stranded, stranded
 
 
 # --- constraints -------------------------------------------------------------
@@ -467,7 +511,11 @@ def test_report_states_its_own_limitation_counts(views):
     from passthru.report import DEFAULT_LIMITATIONS, render
 
     html = render(views, DEFAULT_LIMITATIONS)
-    assert "One utterance per setting" in html
+    # Asserts the substance, not one wording of it. This test pinned the literal string
+    # "One utterance per setting" for as long as the corpus had five utterances, which meant
+    # the stale sentence could not be corrected without also correcting the test.
+    assert "Very few utterances" in html
+    assert "not a benchmark" in html
     assert "pace was not matched" in html
 
 
@@ -517,7 +565,7 @@ def test_absolute_survival_is_pinned(views):
         )
 
 
-def test_clean_run_keeps_the_named_critical_tokens(views):
+def test_clean_run_keeps_the_declared_must_keep_tokens(views):
     """`must_keep` is declared in the corpus and was likewise unenforced."""
     import json
     from pathlib import Path
@@ -1457,12 +1505,11 @@ function el(id) {
            scrollIntoView(){}, addEventListener(){}, focus(){},
            set innerHTML(v) { this._html = v; }, get innerHTML() { return this._html || ''; } };
 }
-const nodes = { said: el('said'), out: el('out'), mic: el('mic'), clear: el('clear'), try: el('try') };
+const nodes = { said: el('said'), out: el('out'), clear: el('clear'), try: el('try') };
 for (const s of ['None','Light','Medium']) nodes['got-' + s] = el('got-' + s);
 nodes.said.value = cap.spoken;
 
-const doc = { getElementById: id => nodes[id] || null, querySelectorAll: () => [],
-              documentElement: { lang: 'en' } };
+const doc = { getElementById: id => nodes[id] || null, querySelectorAll: () => [] };
 vm.runInContext(js, vm.createContext({ document: doc, window: {}, console }));
 
 // Two panes must refuse to be called a comparison.
