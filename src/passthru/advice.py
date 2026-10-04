@@ -262,7 +262,14 @@ def compare_settings(
     from .constraints import detect_inversions, extract, lost, mark_lost
     from .score import score_stage
 
-    settings = [name for name, text in received_by_setting.items() if (text or "").strip()]
+    # Canonical order, safest first, so two sessions print in the same sequence and a diff
+    # of two captures is readable. Keys the caller supplies that are not settings are kept
+    # afterwards rather than dropped, so a typo is visible instead of silently ignored.
+    from .capture import LIVE_SETTINGS
+
+    filled = {name: text for name, text in received_by_setting.items() if (text or "").strip()}
+    settings = [name for name in LIVE_SETTINGS if name in filled]
+    settings += [name for name in filled if name not in settings]
     ratios: dict[str, float] = {}
     lost_by_setting: dict[str, list] = {}
     inversions: list[tuple[str, Any]] = []

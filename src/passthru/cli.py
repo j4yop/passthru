@@ -25,6 +25,7 @@ from pathlib import Path
 from typing import Any
 
 from .advice import advise, render_checked
+from .capture import LIVE_SETTINGS
 from .report import DEFAULT_LIMITATIONS, from_corpus, load_audio, render
 
 DEFAULT_OUT = Path("reports/index.html")
@@ -240,9 +241,13 @@ def main(argv: list[str] | None = None) -> int:
     raw = sys.argv[1:] if argv is None else argv
     if raw and raw[0] == "capture":
         return run_capture(raw[1:])
+    if raw and raw[0] == "live":
+        return run_live(raw[1:])
     if raw and raw[0] in ("-h", "--help") and len(raw) == 1:
         build_parser().print_help()
-        print("\nAlso available: passthru capture --help")
+        print("\nAlso available:")
+        print("  passthru capture --help   one utterance, one setting, appended to a corpus")
+        print("  passthru live --help      one utterance, every setting, compared")
         return 0
 
     args = build_parser().parse_args(raw)
@@ -280,5 +285,191 @@ def main(argv: list[str] | None = None) -> int:
     return 0
 
 
+def build_live_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(
+        prog="passthru live",
+        description=(
+            "Walk one utterance through all three Auto Cleanup settings and report the "
+            "comparison. You dictate the same words three times, changing only the setting, "
+            "because Wispr Flow exposes no way to dictate programmatically: its MCP server "
+            "reads Scratchpad, calendar and meetings, and has no dictation history."
+        ),
+    )
+    parser.add_argument(
+        "--script",
+        help="the exact text you will read aloud; the ground truth for every pass",
+    )
+    parser.add_argument(
+        "--label", default="live", help="capture id to record this under (default: live)"
+    )
+    parser.add_argument(
+        "--settings",
+        default=",".join(LIVE_SETTINGS),
+        help=f"comma-separated settings to walk (default: {','.join(LIVE_SETTINGS)})",
+    )
+    parser.add_argument(
+        "--record",
+        action="store_true",
+        help="record the microphone during each pass (audio stays out of git)",
+    )
+    parser.add_argument(
+        "--mic", default=None, help="microphone name to record from"
+    )
+    parser.add_argument(
+        "--seconds",
+        type=float,
+        default=30.0,
+        help="how long to record per pass (default: 30)",
+    )
+    parser.add_argument(
+        "--save",
+        action="store_true",
+        help="append the capture to the corpus afterwards",
+    )
+    parser.add_argument(
+        "--corpus",
+        type=Path,
+        default=Path("fixtures/corpus.json"),
+        help="corpus to append to with --save (default: fixtures/corpus.json)",
+    )
+    parser.add_argument(
+        "--from-files",
+        nargs="*",
+        default=None,
+        metavar="NAME=TEXT",
+        help=(
+            "score text supplied as NAME=TEXT instead of dictating, for testing the "
+            "comparison without a microphone or the app"
+        ),
+    )
+    return parser
+
+
+def run_live(argv: list[str]) -> int:
+    """Guided three-pass session. Returns a process exit code."""
+    from .advice import compare_settings
+    from .capture import (
+        CaptureError,
+        Capture,
+        append_capture,
+        format_live_verdict,
+        pull_latest_note,
+        record,
+        resolve_mic,
+    )
+    from .scratchpad import WisprError, resolve_token
+
+    args = build_live_parser().parse_args(argv)
+    wanted = [s.strip() for s in args.settings.split(",") if s.strip()]
+    unknown = [s for s in wanted if s not in LIVE_SETTINGS]
+    if unknown:
+        print(
+            f"passthru live: unknown setting(s) {', '.join(unknown)}; "
+            f"expected any of {', '.join(LIVE_SETTINGS)}",
+            file=sys.stderr,
+        )
+        return 1
+    if not wanted:
+        print("passthru live: no settings given", file=sys.stderr)
+        return 1
+
+    try:
+        spoken = (args.script or "").strip()
+        if not spoken and not args.from_files:
+            print("pass --script with the text you are about to read", file=sys.stderr)
+            return 1
+
+        received: dict[str, str] = {}
+        note_ids: dict[str, str] = {}
+        audio_paths: dict[str, str] = {}
+
+        if args.from_files is not None:
+            # Offline mode. Same comparison, no app and no microphone, so the flow can be
+            # exercised in a test or on a machine without Wispr Flow installed.
+            for item in args.from_files:
+                name, _, text = item.partition("=")
+                name = name.strip()
+                if name not in LIVE_SETTINGS:
+                    print(
+                        f"passthru live: {name!r} is not one of "
+                        f"{', '.join(LIVE_SETTINGS)}",
+                        file=sys.stderr,
+                    )
+                    return 1
+                received[name] = text
+            spoken = spoken or next(iter(received.values()))
+        else:
+            token = resolve_token()
+            mic = resolve_mic(args.mic) if args.record else None
+
+            for index, setting in enumerate(wanted, start=1):
+                print()
+                print(f"  pass {index} of {len(wanted)}: Auto Cleanup = {setting}")
+                print(f"    in Wispr Flow: Settings -> Auto Cleanup -> {setting}")
+                print("    open a new Scratchpad note, click into it, hold fn and read the "
+                      "prompt aloud")
+                input("    press Enter once the note has the text... ")
+
+                audio = None
+                if args.record:
+                    print(f"    recording {args.seconds:.0f}s - read it again now")
+                    audio = record(
+                        Path("captures") / f"live-{args.label}-{setting}.wav",
+                        args.seconds,
+                        mic=mic,
+                    )
+                note_id, text = pull_latest_note(token)
+                note_ids[setting] = note_id
+                received[setting] = text
+                if audio:
+                    audio_paths[setting] = str(audio)
+                    print(f"    audio: {audio}")
+
+        outcome = compare_settings(spoken, received, args.label)
+        print()
+        print(f"  {args.label}")
+        print(format_live_verdict(outcome))
+
+        if args.save and args.from_files is None:
+            for setting, text in received.items():
+                append_capture(
+                    args.corpus,
+                    Capture(
+                        id=f"{args.label}/{setting}",
+                        label=f"{args.label} at {setting}",
+                        auto_cleanup=setting,
+                        spoken=spoken,
+                        received=text,
+                        audio=audio_paths.get(setting),
+                        note_id=note_ids.get(setting),
+                    ),
+                )
+            print()
+            print(f"  appended to {args.corpus}")
+            print(
+                "  note: one utterance is n=1. The corpus only says something about a "
+                "setting once several have been captured at each one."
+            )
+        elif args.save:
+            print()
+            print("  not appended: --from-files is offline, there is no real capture to "
+                  "record")
+
+        # One setting is a measurement and not an answer, so it exits non-zero to stop a
+        # script treating a single pass as though it had compared anything.
+        return 0 if outcome["comparable"] else 1
+    except (CaptureError, WisprError) as exc:
+        print(f"passthru live: {exc}", file=sys.stderr)
+        return 1
+    except KeyboardInterrupt:
+        print("\npassthru live: cancelled", file=sys.stderr)
+        return 130
+
+
+# Kept at the very end. It used to sit above build_live_parser and run_live, so
+# `python -m passthru.cli` executed main() before those were defined and failed with a
+# NameError while the installed console script, which imports first, worked fine. Two ways
+# to run the same command disagreeing is the sort of thing that only shows up when a test
+# happens to use the other one.
 if __name__ == "__main__":
     raise SystemExit(main())

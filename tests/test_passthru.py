@@ -1291,3 +1291,131 @@ def test_one_pane_is_not_a_comparison():
         cwd=Path(__file__).resolve().parents[1],
     )
     assert result.returncode == 0, result.stderr
+
+
+# --- passthru live ------------------------------------------------------------------
+
+
+def _u1_runs() -> tuple[str, dict[str, str]]:
+    corpus = json.loads(
+        (Path(__file__).parents[1] / "fixtures" / "corpus.json").read_text()
+    )
+    capture = next(c for c in corpus["captures"] if c["id"] == "u1")
+    return capture["spoken"], {r["auto_cleanup"]: r["received"] for r in capture["runs"]}
+
+
+def test_compare_settings_reproduces_the_published_capture():
+    """The live comparison must report the corpus, not a different measurement of it.
+
+    This is the guarantee that lets the README quote one set of numbers while the page and
+    the command both recompute them: same corpus in, same figures out.
+    """
+    from passthru.advice import compare_settings
+
+    spoken, runs = _u1_runs()
+    outcome = compare_settings(spoken, runs, "u1")
+    assert outcome["settings"] == ["None", "Light", "Medium"]
+    assert round(outcome["ratios"]["None"], 1) == 95.2
+    assert round(outcome["ratios"]["Light"], 1) == 65.1
+    assert round(outcome["ratios"]["Medium"], 1) == 59.0
+    assert round(outcome["spread"], 1) == 36.1
+    assert [(name, i.arrived) for name, i in outcome["inversions"]] == [
+        ("Light", "not pytest"), ("Medium", "not pytest")
+    ]
+
+
+def test_settings_are_reported_in_a_fixed_order():
+    """Two sessions must print in the same sequence or a diff of two captures is unreadable.
+
+    Insertion order leaked through once, so a reversed input printed Light, None, Medium.
+    """
+    from passthru.advice import compare_settings
+
+    spoken, runs = _u1_runs()
+    reversed_runs = {k: runs[k] for k in reversed(list(runs))}
+    assert compare_settings(spoken, reversed_runs)["settings"] == ["None", "Light", "Medium"]
+
+
+def test_one_setting_is_not_called_a_comparison():
+    from passthru.advice import compare_settings
+    from passthru.capture import format_live_verdict
+
+    spoken, runs = _u1_runs()
+    outcome = compare_settings(spoken, {"Light": runs["Light"]}, "one")
+    assert outcome["comparable"] is False
+    text = format_live_verdict(outcome)
+    assert "not a comparison" in text
+    # And it must not print a spread, because there is nothing to spread.
+    assert "spread" not in text
+
+
+def test_a_tied_result_does_not_read_as_a_fault():
+    """`spread 0.0 points, None to None` looks like a broken tool, not a result."""
+    from passthru.advice import compare_settings
+    from passthru.capture import format_live_verdict
+
+    spoken, runs = _u1_runs()
+    same = compare_settings(spoken, {k: runs["None"] for k in ("None", "Light", "Medium")})
+    text = format_live_verdict(same)
+    assert "scored the same" in text
+    assert "to None" not in text
+
+
+def test_live_reports_an_inversion_before_it_reports_a_percentage():
+    """The inversion is the finding. A reader who sees only the spread will miss it.
+
+    Ordering is the whole difference between a number that gets skimmed and a sentence that
+    gets acted on, so it is asserted rather than assumed.
+    """
+    from passthru.capture import format_live_verdict
+    from passthru.advice import compare_settings
+
+    spoken, runs = _u1_runs()
+    text = format_live_verdict(compare_settings(spoken, runs, "u1"))
+    assert text.index("INVERTED") < text.index("spread") + 200
+    assert "INVERTED" in text
+
+
+def test_live_command_runs_offline_against_supplied_text():
+    """The whole flow, without a microphone or the app.
+
+    `--from-files` exists so the comparison can be exercised anywhere. If it drifts from
+    `compare_settings` the command would report different numbers from the page.
+    """
+    import subprocess
+
+    spoken, runs = _u1_runs()
+    result = subprocess.run(
+        [sys.executable, "-m", "passthru.cli", "live", "--script", spoken,
+         "--from-files", *[f"{k}={v}" for k, v in runs.items()]],
+        capture_output=True, text=True, cwd=Path(__file__).resolve().parents[1],
+    )
+    assert result.returncode == 0, result.stderr
+    assert "95.2%" in result.stdout
+    assert "65.1%" in result.stdout
+    assert "59.0%" in result.stdout
+    assert "spread 36.1 points" in result.stdout
+    assert "INVERTED" in result.stdout
+
+
+def test_live_refuses_an_unknown_setting_and_will_not_fake_a_capture():
+    import subprocess
+
+    root = Path(__file__).resolve().parents[1]
+    spoken, runs = _u1_runs()
+
+    bad = subprocess.run(
+        [sys.executable, "-m", "passthru.cli", "live", "--script", spoken,
+         "--from-files", "Heavy=whatever"],
+        capture_output=True, text=True, cwd=root,
+    )
+    assert bad.returncode == 1
+    assert "not one of" in bad.stderr
+
+    # --save must not write a capture that never happened.
+    saved = subprocess.run(
+        [sys.executable, "-m", "passthru.cli", "live", "--script", spoken, "--save",
+         "--from-files", *[f"{k}={v}" for k, v in runs.items()]],
+        capture_output=True, text=True, cwd=root,
+    )
+    assert "not appended" in saved.stdout

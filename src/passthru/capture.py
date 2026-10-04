@@ -258,3 +258,82 @@ def summarise(capture: Capture, spoken: str, received: str) -> str:
         f"{capture.id}: {result.ratio * 100:.1f}% token survival "
         f"({len(result.lost)} of {result.spoken} tokens lost)"
     )
+
+
+LIVE_SETTINGS = ("None", "Light", "Medium")
+"""The order a live session walks, safest first.
+
+None goes first so that if the session is abandoned after one pass there is still a baseline
+on record. Ordering by expected quality rather than alphabetically also means the printed
+spread always reads in the direction the reader cares about.
+"""
+
+
+def format_live_verdict(outcome: dict) -> str:
+    """Render a three-way comparison as text, for the terminal.
+
+    Deliberately reports the spread before any single number. A session where every setting
+    scored 100% and a session where they scored 100, 100 and 63% both contain runs worth
+    quoting, and only the second one says anything about which setting to use. Leading with
+    a mean, or with the default setting's score, hides that.
+    """
+    if not outcome["settings"]:
+        return "nothing captured yet"
+
+    lines: list[str] = []
+    ratios = outcome["ratios"]
+    if not outcome["comparable"]:
+        lines.append(
+            "  only one setting captured, so this is a measurement, not a comparison."
+        )
+        lines.append(
+            "  Which setting to use is a question about how the settings differ from each "
+            "other, and one run cannot answer it. Pass the other settings to compare."
+        )
+        lines.append("")
+    lines.append("  setting   token survival")
+    for name in outcome["settings"]:
+        marker = "  (product default)" if name == "Light" else ""
+        lines.append(f"  {name:<9} {ratios[name]:6.1f}%{marker}")
+
+    if outcome["comparable"]:
+        lines.append("")
+        if outcome["spread"] < 0.05:
+            # "None to None" reads like a fault in the tool rather than a result.
+            lines.append(
+                f"  every setting scored the same ({max(ratios.values()):.1f}%), so this "
+                f"utterance says nothing about which to use. Short prompts often land like "
+                f"this; the settings only separated once a prompt was dense with filenames, "
+                f"numerals and prohibitions, and even then only on some passes."
+            )
+        else:
+            best = max(ratios, key=lambda k: ratios[k])
+            worst = min(ratios, key=lambda k: ratios[k])
+            lines.append(
+                f"  spread {outcome['spread']:.1f} points, {worst} to {best}"
+            )
+
+    for name, inversion in outcome["inversions"]:
+        lines.append("")
+        lines.append(
+            f"  INVERTED at {name}: you said {inversion.said!r} and the agent "
+            f"received {inversion.arrived!r}. That is the opposite instruction, and "
+            f"nothing raised an error."
+        )
+
+    if outcome["recommendations"]:
+        lines.append("")
+        for rec in outcome["recommendations"]:
+            recovered = ", ".join(rec["would_recover"])
+            lines.append(
+                f"  at {rec['setting']}, switch to {rec['change_to']}: that keeps "
+                f"{recovered} (token survival only)"
+            )
+    elif outcome["comparable"]:
+        lines.append("")
+        lines.append(
+            "  no setting change recommended: nothing another setting kept that this one "
+            "lost, or what was lost is a number a setting cannot be shown to fix"
+        )
+
+    return "\n".join(lines)
