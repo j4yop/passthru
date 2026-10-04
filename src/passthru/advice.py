@@ -55,6 +55,27 @@ def is_actionable(requirement: Requirement) -> bool:
     return not _NUMERIC.match(requirement.value.strip())
 
 
+def assert_no_unsupported_claims(text: str, where: str = "report") -> None:
+    """Refuse to publish text claiming something this tool never measured.
+
+    `advice.py` has asserted for some time that a check like this is "enforced, not just
+    documented", and it was only ever applied to advice sentences under `--advice`. A corpus
+    whose `spoken` text contains the word "accuracy" produced a report saying accuracy and
+    correctness several times, with exit status 0 -- the tool making a claim it has no
+    instrument for, on the strength of text it had merely been handed.
+
+    Applied to the generated sentences only, never to the corpus text quoted inside them.
+    Quoting a requirement that happens to contain such a word is the corpus being reported
+    on, not the report making a claim.
+    """
+    lowered = text.lower()
+    for word in _PROHIBITED_CLAIMS:
+        if word in lowered:
+            raise ValueError(
+                f"{where} claims {word!r}, which this tool has not measured"
+            )
+
+
 @dataclass
 class Advice:
     """One run's recommendation, or the reason there isn't one."""

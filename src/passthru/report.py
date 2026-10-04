@@ -30,7 +30,7 @@ from .score import score_stage
 
 _MODULE_DIR = Path(__file__).resolve().parent
 
-CLAIMED_TESTS = 105
+CLAIMED_TESTS = 131
 """The number of tests this project claims on its report.
 
 Hardcoded, and therefore able to drift, which it did: the page said 58 for several commits
@@ -45,22 +45,28 @@ from .capture import LIVE_SETTINGS, PRODUCT_DEFAULT
 def _mutation_count() -> str:
     """How many faults `scripts/mutation.py` injects, read from the script.
 
-    Counted from the file rather than written here, because a number on this page that no
-    code path produces is the exact failure this project criticises. If the script is
-    missing the claim is dropped rather than guessed: an absent number is honest, a stale
-    one is not.
+    Counted by executing the script's own list, not by counting markers in its source text.
+    An earlier version counted the literal indentation before each tuple, so reformatting one
+    entry changed the rendered page from 13 to 12 and all 105 tests still passed -- the page
+    claiming a number that no longer matched the thing it described.
+
+    If the script cannot be read the claim is dropped rather than guessed: an absent number
+    is honest, a stale one is not.
     """
     script = Path(__file__).resolve().parents[2] / "scripts" / "mutation.py"
     try:
         source = script.read_text(encoding="utf-8")
-    except OSError:
+        namespace: dict = {"__name__": "passthru_mutation_count", "__file__": str(script)}
+        # Executed, not parsed. The script only builds a module-level list at import time;
+        # its main() is guarded, so importing it has no side effects beyond that.
+        start = source.find("if __name__ ==")
+        if start != -1:
+            source = source[:start]
+        exec(compile(source, str(script), "exec"), namespace)
+        mutations = namespace.get("MUTATIONS")
+        return str(len(mutations)) if mutations else "some"
+    except Exception:
         return "some"
-    start = source.find("MUTATIONS: list[tuple[str, str, str, str, str]] = [")
-    if start == -1:
-        return "some"
-    body = source[start:]
-    entries = body.count("\n    (\n        \"")
-    return str(entries) if entries else "some"
 
 
 MUTATION_COUNT = _mutation_count()
@@ -1083,21 +1089,32 @@ def _utterance_table(view: RunView) -> str:
     rows = []
     for pair in view.pairs:
         pct = pair.survival.ratio * 100
-        if not pair.matched:
+        if pair.survival.spoken == 0:
+            # A punctuation-only utterance has no tokens, so it cannot have lost any. It
+            # used to print "entire utterance lost" here *and* 100% in the next column,
+            # because `matched` is False for zero tokens while `score_stage` correctly
+            # reports 1.0 for empty input. Two adjacent cells disagreeing inside one row is
+            # the kind of thing a reader stops trusting the whole table for.
+            lost_html = '<span style="color:var(--fg-dim)">no tokens to lose</span>'
+            pct_text = "&mdash;"
+        elif not pair.matched:
             lost_html = '<span class="dead">entire utterance lost</span>'
+            pct_text = f"{pct:.0f}%"
         elif pair.survival.lost:
             lost_html = " ".join(
                 f'<span class="tok gone">{_e(t)}</span>' for t in pair.survival.lost
             )
+            pct_text = f"{pct:.0f}%"
         else:
             lost_html = '<span style="color:var(--kept)">nothing lost</span>'
+            pct_text = f"{pct:.0f}%"
         rows.append(
             f"""      <tr>
         <td class="num">{pair.index}</td>
         <td class="said">{_e(pair.spoken)}</td>
         <td class="got">{_e(pair.received) or '<span class="dead">nothing arrived</span>'}</td>
         <td>{lost_html}</td>
-        <td class="num">{pct:.0f}%</td>
+        <td class="num">{pct_text}</td>
       </tr>"""
         )
     return "\n".join(rows)
@@ -1446,7 +1463,7 @@ def render(views: list[RunView], limitations: list[str] | None = None,
 more with <code>passthru capture</code> and this becomes a range rather than a single
 number.</p>"""
 
-    return f"""<!DOCTYPE html>
+    html = f"""<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
@@ -1540,6 +1557,15 @@ default setting is expanded.</p>
 </body>
 </html>
 """
+
+    # Checked on the way out, against the sentences this module generated. A corpus can
+    # quote the word "accuracy" in a requirement; that is the corpus being reported on. A
+    # report that *claims* accuracy is this tool asserting something it has no
+    # instrument for, which is the failure mode the whole project is about.
+    from .advice import assert_no_unsupported_claims
+
+    assert_no_unsupported_claims(html, "the report")
+    return html
 
 
 

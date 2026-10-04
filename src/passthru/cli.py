@@ -269,6 +269,11 @@ def main(argv: list[str] | None = None) -> int:
     except InputError as exc:
         print(f"passthru: {exc}", file=sys.stderr)
         return 1
+    except ValueError as exc:
+        # The generated text claimed something this tool has no instrument for. A condition
+        # worth reporting, not a bug worth a stack trace.
+        print(f"passthru: {exc}", file=sys.stderr)
+        return 1
     except UnicodeEncodeError:
         # json.loads accepts a lone surrogate; html.escape passes it through; the write
         # cannot encode it. Reported as a data problem rather than a traceback.
@@ -284,13 +289,20 @@ def main(argv: list[str] | None = None) -> int:
 
     print(written)
 
+    # Checked before anything is written. It used to run after the report was on disk, so a
+    # corpus whose advice text claimed something unmeasured left a 50 KB report behind and
+    # still exited 1 -- the documented `passthru fixtures/corpus.json --advice` failed while
+    # appearing to succeed.
+    advice_text = ""
     if args.advice:
         try:
-            sys.stdout.write(render_checked(advise(views)))
+            advice_text = render_checked(advise(views))
         except ValueError as exc:
             print(f"passthru: {exc}", file=sys.stderr)
             return 1
 
+    if advice_text:
+        sys.stdout.write(advice_text)
     return 0
 
 

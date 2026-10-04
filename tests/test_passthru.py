@@ -1539,3 +1539,130 @@ console.log('ok');
     )
     assert result.returncode == 0, result.stderr
     assert "ok" in result.stdout
+
+
+# --- Faults found by audit --------------------------------------------------------
+#
+# Each of these was a real defect that shipped. They are pinned here rather than described
+# in a comment, because the comments were how the last set stayed broken for so long.
+
+
+@pytest.mark.parametrize("text", [
+    "put the parser in score.py and keep.", "keep", "keep;", "Please keep.",
+    "do not keep.", "keep\n", "and keep.",
+])
+def test_a_sentence_ending_in_the_bare_word_keep_does_not_crash(text):
+    """The fallback indexed body.split()[1], assuming a word followed "keep".
+
+    Any sentence ending in that word raised IndexError straight out of the main entry
+    point. Ordinary dictation, and the shipped corpus never said it because every capture
+    phrased it as "keep the file name as ...".
+    """
+    extract(text)  # must not raise
+
+
+@pytest.mark.parametrize("spoken,words", [
+    ("one two three four", ["one", "two", "three", "four"]),
+    ("nine eleven", ["nine", "eleven"]),
+    ("ten nine", ["ten", "nine"]),
+    ("twenty ten", ["twenty", "ten"]),
+    ("one five", ["one", "five"]),
+    ("grid columns one two three", ["grid", "columns", "one", "two", "three"]),
+    ("one two one two one two", ["one", "two", "one", "two", "one", "two"]),
+])
+def test_a_list_of_values_is_not_a_number(spoken, words):
+    """The fold summed every unit and tens word in a run, inventing numbers.
+
+    "one two three four" became 10 and "nine eleven" became 20. A dictated list of values
+    then collapsed into one invented token, so a delivered list of the same values scored
+    zero for text that had arrived perfectly well.
+    """
+    assert tokenize(spoken) == words
+
+
+@pytest.mark.parametrize("spoken,expected", [
+    ("ninety nine", ["99"]), ("two hundred", ["200"]),
+    ("one hundred and five", ["105"]), ("two hundred fifty", ["250"]),
+    ("zero point five", ["0.5"]), ("three point ten", ["3.10"]),
+])
+def test_a_real_number_still_folds(spoken, expected):
+    assert tokenize(spoken) == expected
+
+
+@pytest.mark.parametrize("spoken,arrived", [
+    ("don't pytest", "do pytest"),
+    ("dont pytest", "do pytest"),
+    ("don't run the suite", "do run the suite"),
+])
+def test_a_contraction_prohibition_arriving_as_its_affirmative_is_reported(spoken, arrived):
+    """detect_inversions matched patterns over text _normalise had already rewritten.
+
+    `_normalise` turns "don't" into "do not" for requirement extraction, so the don't-X rule
+    could never fire. A prohibition arriving as its affirmative is the most serious loss this
+    tool reports, and it was blind to the commonest English contraction while the browser
+    scorer found it. No corpus run used a contraction, so parity could not see it either.
+    """
+    from passthru.constraints import detect_inversions
+
+    found = detect_inversions(spoken, arrived)
+    assert found, f"{spoken!r} arriving as {arrived!r} was not reported"
+    assert found[0].arrived.strip().lower().startswith("do")
+
+
+def test_the_corpus_setting_name_cannot_inject_markup():
+    """Stored XSS. The coverage sentence interpolated `auto_cleanup` unescaped.
+
+    Every other use of that value on the page went through _e(); this one did not, and a
+    sweep of all seven corpus-controlled fields found it as the only live sink. The report is
+    a single self-contained file on a static host, so this executed for anyone who opened it.
+    """
+    payload = "<img src=x onerror=alert(1)>"
+    corpus = {
+        "captures": [
+            {"id": "c1", "label": "l", "spoken": "keep score.py here and no pytest",
+             "runs": [{"id": "c1", "auto_cleanup": payload, "received": "not pytest"}]},
+            {"id": "c2", "label": "l", "spoken": "keep score.py here and no pytest",
+             "runs": [{"id": "c2", "auto_cleanup": payload, "received": "not pytest"}]},
+        ]
+    }
+    from passthru.report import render as render_report
+
+    html = render_report(from_corpus(corpus))
+    assert payload not in html
+    assert "&lt;img" in html
+
+
+def test_a_corpus_cannot_make_the_report_claim_accuracy():
+    """advice.py asserted for some time that this was enforced rather than documented.
+
+    It was only ever applied to advice sentences under --advice. A corpus whose spoken text
+    contained "accuracy" produced a report saying accuracy and correctness several times, and
+    exited 0 -- the tool asserting something it has no instrument for.
+    """
+    from passthru.advice import assert_no_unsupported_claims
+
+    with pytest.raises(ValueError, match="accuracy"):
+        assert_no_unsupported_claims("this improves the accuracy of your code")
+    assert_no_unsupported_claims("token survival, worst 95.2%, median 97.6%")
+
+
+def test_a_punctuation_only_utterance_does_not_contradict_itself():
+    """It printed "entire utterance lost" and 100% in two adjacent cells.
+
+    `matched` is False for a zero-token pair while score_stage correctly reports 1.0 for
+    empty input, so both statements were true and together said nothing.
+    """
+    corpus = {
+        "captures": [{
+            "id": "z", "label": "l", "spoken": "!!! ??? ... ---",
+            "runs": [
+                {"id": "z", "auto_cleanup": "None", "received": "!!! ??? ... ---"},
+                {"id": "z", "auto_cleanup": "Light", "received": "nonsense tokens here now"},
+            ],
+        }]
+    }
+    from passthru.report import render as render_report
+
+    html = render_report(from_corpus(corpus))
+    assert "entire utterance lost" not in html
+    assert "no tokens to lose" in html

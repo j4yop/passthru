@@ -71,6 +71,39 @@ globalThis.checkInversion = checkInversion;
   context
 );
 
+// The setting list is compared, not assumed. It used to be hardcoded here as a literal
+// membership test, so renaming a setting in capture.py left this harness comparing four
+// captures and exiting 0 -- while the page emitted id="got-Heavy" and the browser wiring
+// still asked for got-Medium, killing the checker on the published page with no error. The
+// comments in capture.py and browser.js both claimed this harness prevented exactly that.
+const pythonSettings = execFileSync(
+  "bash",
+  ["-c", `cd "${here}" && PYTHONPATH=src .venv/bin/python -c "
+from passthru.capture import LIVE_SETTINGS
+print(','.join(LIVE_SETTINGS))
+"`],
+  { encoding: "utf8" }
+).trim();
+
+const browserSettings = readFileSync(`${here}src/passthru/browser.js`, "utf8")
+  .match(/const SETTINGS = \[([^\]]*)\]/);
+if (!browserSettings) {
+  console.error("could not find the setting list in browser.js");
+  process.exit(1);
+}
+const fromBrowser = browserSettings[1]
+  .split(",")
+  .map((s) => s.trim().replace(/^['"]|['"]$/g, ""))
+  .filter(Boolean);
+if (fromBrowser.join(",") !== pythonSettings) {
+  console.error(
+    `browser.js lists [${fromBrowser.join(", ")}] but capture.LIVE_SETTINGS is ` +
+      `[${pythonSettings}]`
+  );
+  process.exit(1);
+}
+const ALL_SETTINGS = pythonSettings.split(",");
+
 const corpus = JSON.parse(readFileSync(`${here}fixtures/corpus.json`, "utf8"));
 const mismatches = [];
 let compared = 0;
@@ -165,7 +198,7 @@ for cap in corpus['captures']:
 
 let comparedVerdicts = 0;
 for (const [id, { spoken, runs }] of byCapture) {
-  if (!("None" in runs) || !("Light" in runs) || !("Medium" in runs)) continue;
+  if (!ALL_SETTINGS.every((s) => s in runs)) continue;
   const expected = pythonVerdicts.get(id);
   if (!expected) {
     mismatches.push(`${id}: no Python verdict to compare against`);
@@ -203,6 +236,7 @@ for (const [id, { spoken, runs }] of byCapture) {
 }
 
 if (!compared || !comparedVerdicts) {
+  console.error(`only ${comparedVerdicts} capture(s) had all of [${ALL_SETTINGS.join(", ")}]`);
   console.error("nothing compared; refusing to report a pass");
   process.exit(1);
 }

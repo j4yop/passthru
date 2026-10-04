@@ -304,6 +304,21 @@ function applyInversions(reqs, spoken, received) {
   });
 }
 
+// The diff below is a full (n+1)x(m+1) LCS table, which is quadratic: 500 tokens took 25ms,
+// 1000 took 85ms, 2000 took 335ms, and 16 000 tokens -- a hundred kilobytes of pasted text,
+// which nothing stops a visitor from trying -- took 21 seconds and 1.1 GB on the main thread.
+// Python's difflib does the same comparison in 0.04s because it drops its autojunk
+// heuristic on large inputs; porting that heuristic faithfully would mean porting difflib.
+//
+// So the page bounds the work instead and says so. A dictation prompt is a paragraph, and at
+// this cap the worst case is a third of a second. Silently freezing the tab was the
+// alternative.
+const MAX_TOKENS = 2000;
+
+function tooLarge(text) {
+  return text ? tokenize(text).length > MAX_TOKENS : false;
+}
+
 function analyse(spoken, received) {
   const src = tokenize(spoken), dst = tokenize(received);
   const { survived, lost } = diffTokens(src, dst);
@@ -567,6 +582,17 @@ function compare(spoken, receivedBySetting) {
 
     const received = {};
     for (const s of SETTINGS) if (boxes[s].value.trim()) received[s] = boxes[s].value;
+
+    // Refuse before doing the work, not after.
+    const tooBig = [said, ...Object.values(received)].filter(tooLarge);
+    if (tooBig.length) {
+      out.innerHTML = `<p class="hint">That text is longer than ${MAX_TOKENS} tokens, and the ` +
+        `comparison in this page is quadratic in length, so scoring it would freeze the tab. ` +
+        `The Python package handles it; this is a page, not a cluster. Paste a paragraph ` +
+        `rather than a document.</p>`;
+      return;
+    }
+
     const v = compare(said.value, received);
     const shown = v.settings;
 
