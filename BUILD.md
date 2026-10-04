@@ -207,10 +207,51 @@ scaffolding leaked into the numbers. Worth recording for the harness-as-experime
 apparatus is made of the same speech as the experiment, so anything the pipeline mangles, it
 mangles in the scaffolding too.
 
+## The live checker, and what building it exposed
+
+The corpus could not support a recommendation, and the tool looked broken because of it. The
+advice rule needs a sibling run of the *same utterance* at a different setting to have any
+evidence, and only four captures have all three, so advice refused everywhere in the published
+data. That refusal is correct.
+
+`passthru live` and the four-pane checker on the page remove the reason rather than the rule:
+three passes of one utterance give the witness by construction, and the tool finally has
+something to say. Both call one implementation, `compare_settings`, held to the page's port by
+`scripts/check-parity.mjs`.
+
+Building it found five things the existing harness could not see, because parity only compared
+survival ratios:
+
+- Requirement detection in the page disagreed with the package on prohibitions, because Python
+  uses exact presence for filenames, numbers and choices but a 70% overlap for the rest, and
+  the page required every token for all of them.
+- It took only the first match of each pattern where Python takes all of them.
+- Its stopword list was a different, smaller list, so the two read different text from the same
+  sentence.
+- It never expanded contractions, so a prohibition phrased with "don't" was undetectable there
+  and detectable here.
+- It did not emit the `term` requirement Python derives from a choice.
+
+Then a real browser found three more that no unit test could have:
+
+- The checker rendered nothing on load in any browser without speech recognition, because
+  `run()` sat after an early `return` for the missing API. Nothing was wrong with the scorer;
+  the page never asked it a question.
+- An inverted prohibition scored as *survived*. The requirement's value was `pytest` and
+  `not pytest` contains that token, so a run read "nothing lost" directly beneath a report
+  saying `no pytest` became `not pytest`. The exact contradiction this project criticises,
+  produced by its own scorer.
+- `no pytest` was never extracted as a prohibition at all, because the pattern did not include
+  a bare `no`.
+
+That last one is the one worth remembering. The README had described the inversion as the
+project's central finding for days while the requirement report quietly omitted it. A claim in
+prose is not a claim in code, and only the code gets tested.
+
 **Not dictated:** `capture.py`, the test suite, `browser.js`, `scripts/check-parity.mjs`,
-the audit, and the rewritten README and this file. That is a large share of the repository.
-An addendum take covering those would close the gap; without one, this section is the honest
-record of it.
+`scripts/mutation.py`, the checker, `passthru live`, the audit, and the rewritten README and
+this file. That is most of the repository. An addendum take covering them would close the gap;
+without one, this section is the honest record of it.
 
 ## What is not claimed
 

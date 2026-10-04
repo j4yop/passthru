@@ -33,8 +33,12 @@ wrong. Raw passthrough delivered it correctly, twice out of two attempts.
 One self-contained HTML file, 79 KB. No build step and nothing fetched: styles and scorer
 are embedded, so it renders identically from that URL and from a local file path.
 
-On the page you can **score your own dictation** by pasting what you said and what arrived,
-with presets loaded from the corpus. Nothing is uploaded; the scorer runs in the page, and a
+On the page you can **check your own dictation against all three settings**: dictate the same
+thing into Wispr Flow three times, paste what each pass delivered, and the page reports
+per-setting survival, the spread, which requirements died at each, whether any prohibition
+arrived inverted, and a setting recommendation when the evidence supports one. Presets load
+the whole corpus capture into all three panes, so you can see it work on real data before
+trusting it with your own. Nothing you type is uploaded; the scorer runs in the page, and a
 test holds it to the same numbers the Python package produces.
 
 Every finding is also written out in static text, so the document reads correctly with
@@ -118,17 +122,53 @@ passthru fixtures/corpus.json --out /tmp/r.html   # anywhere you like
 The checks the project relies on are runnable too:
 
 ```bash
-pytest                                          # 89 tests
-node scripts/check-parity.mjs                    # page scorer vs package, every run
+pytest                                          # 103 tests
+node scripts/check-parity.mjs                    # page vs package: ratios, requirements,
+                                                #   inversions and three-way verdicts
 .venv/bin/python scripts/mutation.py             # 13 deliberate faults, all must be caught
 ```
 
 `scripts/mutation.py` is the interesting one. It breaks the tokeniser in thirteen specific
 ways and fails if the suite does not notice each one, because reading the code finds what you
-already know.
+already know. It has caught three faults a review missed, and writing it caught two faults in
+the harness itself, both of which printed a confident and completely wrong summary.
 
 The report is a single self-contained HTML file. No assets, no JavaScript, legible in dark
 and light. It opens from a USB stick on a machine with no network.
+
+### Check your own dictation
+
+Three ways, depending on how much you want to automate.
+
+**In the page.** Paste what you said and what each setting delivered. Instant, client-side,
+nothing uploaded.
+
+**`passthru live`, guided.** It walks you through all three settings, tells you what to change
+in the app before each pass, pulls the delivered text from Scratchpad over MCP, optionally
+records the microphone, and prints the comparison as each pass lands:
+
+```bash
+passthru live --script "the exact text you are about to read aloud"
+```
+
+**`passthru capture`, one setting at a time.** The lower-level path, for building a corpus:
+
+```bash
+for level in None Light Medium; do
+  passthru capture --cleanup "$level" \
+                   --script "the exact text you are about to read aloud" \
+                   --label "u6"
+done
+```
+
+The three settings have to be walked by hand, and that is a property of Wispr Flow rather than
+a shortcut this tool chose not to take: its MCP server reads Scratchpad, calendar and meetings,
+and exposes **no way to dictate into it**. There is no API to submit audio at a chosen cleanup
+level, so each pass needs a human holding `fn` with the app configured for that setting. A
+tool that claimed otherwise would be measuring its own simulation of the thing under test.
+
+`passthru live --from-files "None=..." "Light=..." "Medium=..."` runs the identical comparison
+from supplied text, with no microphone and no app, which is how the flow is tested.
 
 To capture a new corpus, dictate into the Scratchpad and run:
 

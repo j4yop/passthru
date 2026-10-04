@@ -36,6 +36,19 @@ because it is what makes "cleanup is bad for you" unsupportable as a general cla
 
 ## An inversion, not a loss
 
+The prohibition in that utterance, `no pytest`, was invisible to the requirement extractor for
+most of this project's life. The pattern recognised `do not`, `never`, `avoid`, `no need to`
+and `stop`, and not a bare `no`, so the corpus's most serious prohibition was absent from every
+requirement report while this document described it as the headline finding. The token scorer
+also counted it as *survived*, because the requirement's value was `pytest` and `not pytest`
+contains that token. Both are fixed: bare `no` is extracted, and an inverted prohibition is
+marked lost rather than kept.
+
+So the figures below are unchanged, because they are token survival and neither fault touched
+tokenisation. What changed is that a run which inverted its most serious instruction can no
+longer be reported as having lost nothing.
+
+
 The most serious thing in the corpus is not a missing token. On `u1`, at **both** rewrite
 settings, `no pytest` arrived as `not pytest`:
 
