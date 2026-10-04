@@ -22,6 +22,7 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass, field
+from typing import Any
 from typing import Iterable
 
 from .constraints import Requirement
@@ -239,3 +240,69 @@ def render_checked(advices: list[Advice]) -> str:
                 "recommendations are scoped to tokens"
             )
     return text
+
+
+def compare_settings(
+    spoken: str, received_by_setting: dict[str, str], capture_id: str = "live"
+) -> dict[str, Any]:
+    """Score one utterance against several settings and say what the evidence supports.
+
+    This is the shared core of the live checker in the page and of `passthru live`, and
+    browser.js carries a port of it held to this by `scripts/check-parity.mjs`. Keeping one
+    implementation is the point: the page, the command and the published corpus must not be
+    able to disagree about which setting was better.
+
+    Returns ratios per setting, their spread, any inverted prohibitions, and one
+    recommendation per setting whose losses another setting actually recovered. A
+    recommendation is omitted rather than guessed, which is why the published corpus
+    produces none: it has no capture with all three settings where a sibling kept a
+    requirement that another lost.
+    """
+    from .align import align_utterances
+    from .constraints import detect_inversions, extract, lost, mark_lost
+    from .score import score_stage
+
+    settings = [name for name, text in received_by_setting.items() if (text or "").strip()]
+    ratios: dict[str, float] = {}
+    lost_by_setting: dict[str, list] = {}
+    inversions: list[tuple[str, Any]] = []
+
+    for name in settings:
+        received = received_by_setting[name]
+        survival = score_stage(spoken, received)
+        ratios[name] = survival.ratio * 100
+        requirements = mark_lost(extract(spoken), received)
+        lost_by_setting[name] = lost(requirements)
+        for inversion in detect_inversions(spoken, received):
+            inversions.append((name, inversion))
+
+    views = [
+        RunView(
+            run_id=f"{capture_id}/{name}", auto_cleanup=name, label="", ratio=ratios[name] / 100,
+            spoken=len(score_stage(spoken, received_by_setting[name]).survived)
+            + len(score_stage(spoken, received_by_setting[name]).lost),
+            pairs=align_utterances(spoken, received_by_setting[name]),
+            lost_requirements=lost_by_setting[name], is_default=name == "Light",
+            capture=capture_id, spoken_text=spoken,
+        )
+        for name in settings
+    ]
+    recommendations = [a for a in advise(views) if a.has_recommendation]
+
+    return {
+        "capture": capture_id,
+        "settings": settings,
+        "ratios": ratios,
+        "spread": (max(ratios.values()) - min(ratios.values())) if ratios else 0.0,
+        "comparable": len(settings) > 1,
+        "inversions": inversions,
+        "recommendations": [
+            {
+                "setting": a.auto_cleanup,
+                "change_to": a.change_to,
+                "would_recover": a.would_recover,
+                "reason": a.reason,
+            }
+            for a in recommendations
+        ],
+    }

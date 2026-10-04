@@ -181,13 +181,18 @@ def main() -> int:
         for description, consequence in survived:
             print(f"  - {description}: {consequence}")
 
-    dirty = subprocess.run(
-        ["git", "diff", "--quiet", "--"] + sorted(originals),
-        cwd=ROOT, capture_output=True,
-    ).returncode != 0
-    if dirty:
-        print("\nWARNING: sources differ from the originals after restoring")
+    # Compared against this script's own snapshot, not against git. Comparing against the
+    # working tree's base commit reports every uncommitted change as damage, which is
+    # exactly what it did while the tokenizer fix was still unstaged: a confident warning
+    # about nothing.
+    damaged = [
+        relative for relative, text in originals.items()
+        if (ROOT / relative).read_text() != text
+    ]
+    if damaged:
+        print("\nWARNING: these sources were not restored:", ", ".join(damaged))
         return 1
+    print("sources verified restored")
     return 1 if (survived or broken) else 0
 
 

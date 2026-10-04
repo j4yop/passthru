@@ -136,22 +136,30 @@ const pythonVerdicts = new Map(
     "bash",
     ["-c", `cd "${here}" && PYTHONPATH=src .venv/bin/python -c "
 import json
-from passthru.report import from_corpus
-from passthru.advice import advise
-views = from_corpus(json.load(open('fixtures/corpus.json')))
-captures = sorted({v.capture for v in views})
-for cap in captures:
-    recs = [a for a in advise([v for v in views if v.capture == cap]) if a.has_recommendation]
-    recovered = sorted(r.would_recover[0] for r in recs if r.would_recover)
-    print(f'{cap}\t{len(recs)}\t' + ','.join(recovered))
+from passthru.advice import compare_settings
+corpus = json.load(open('fixtures/corpus.json'))
+for cap in corpus['captures']:
+    runs = {r['auto_cleanup']: r['received'] for r in cap['runs']}
+    out = compare_settings(cap['spoken'], runs, cap['id'])
+    cid = cap['id']
+    spread = out['spread']
+    inversions = ','.join(sorted(i.arrived for _, i in out['inversions']))
+    recs = out['recommendations']
+    recovered = sorted(r['would_recover'][0] for r in recs if r['would_recover'])
+    print(f'{cid}\t{spread:.4f}\t{len(recs)}\t' + ','.join(recovered) + '\t' + inversions)
 "`],
     { encoding: "utf8" }
   )
     .trim()
     .split("\n")
     .map((line) => {
-      const [id, count, recovered] = line.split("\t");
-      return [id, { count: Number(count), recovered: recovered ? recovered.split(",") : [] }];
+      const [id, spread, count, recovered, inversions] = line.split("\t");
+      return [id, {
+        spread: parseFloat(spread),
+        count: Number(count),
+        recovered: recovered ? recovered.split(",") : [],
+        inversions: inversions ? inversions.split(",") : []
+      }];
     })
 );
 
@@ -180,8 +188,18 @@ for (const [id, { spoken, runs }] of byCapture) {
         `recover [${browserRecovered.join(", ")}]`
     );
   }
-  const packageInversions = context.checkInversion(spoken, runs["Light"]).length;
-  if (packageInversions < 0) mismatches.push(`${id}: impossible inversion count`);
+  if (Math.abs(actual.spread - expected.spread) > 0.05) {
+    mismatches.push(
+      `${id}: spread package ${expected.spread.toFixed(2)} vs page ${actual.spread.toFixed(2)}`
+    );
+  }
+  const pageInversions = actual.inversions.map((i) => i.arrived).sort();
+  if (pageInversions.join(",") !== expected.inversions.join(",")) {
+    mismatches.push(
+      `${id}: inversions package [${expected.inversions.join(", ")}] vs page ` +
+        `[${pageInversions.join(", ")}]`
+    );
+  }
 }
 
 if (!compared || !comparedVerdicts) {
