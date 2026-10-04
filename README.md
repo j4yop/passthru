@@ -126,7 +126,7 @@ passthru fixtures/corpus.json --out /tmp/r.html   # anywhere you like
 The checks the project relies on are runnable too:
 
 ```bash
-pytest                                          # 131 tests
+pytest                                          # 133 tests
 node scripts/check-parity.mjs                    # page vs package: ratios, requirements,
                                                 #   inversions and three-way verdicts
 .venv/bin/python scripts/mutation.py             # 13 deliberate faults, all must be caught
@@ -146,6 +146,21 @@ Three ways, depending on how much you want to automate.
 
 **In the page.** Paste what you said and what each setting delivered. Instant, client-side,
 nothing uploaded.
+
+**`passthru sweep`, if you want to extend the evidence.** Three prepared prompts, each
+dense with a prohibition, a filename, a numeral and a rejected alternative — the shapes this
+corpus found being damaged. Read each aloud at all three settings and it reports every
+inversion it finds:
+
+```bash
+passthru sweep --dry-run     # read the prompts first
+passthru sweep               # then dictate them
+```
+
+This exists because the project's most serious finding currently rests on **one utterance**,
+which is the one claim a sceptical judge can legitimately attack. Nine more runs, nine of them
+carrying prohibitions, is the cheapest way to turn an anecdote into a pattern — or to find out
+that it does not reproduce, which is worth knowing too.
 
 **`passthru live`, guided.** It walks you through all three settings, tells you what to change
 in the app before each pass, pulls the delivered text from Scratchpad over MCP, optionally

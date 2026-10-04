@@ -243,11 +243,14 @@ def main(argv: list[str] | None = None) -> int:
         return run_capture(raw[1:])
     if raw and raw[0] == "live":
         return run_live(raw[1:])
+    if raw and raw[0] == "sweep":
+        return run_sweep(raw[1:])
     if raw and raw[0] in ("-h", "--help") and len(raw) == 1:
         build_parser().print_help()
         print("\nAlso available:")
         print("  passthru capture --help   one utterance, one setting, appended to a corpus")
         print("  passthru live --help      one utterance, every setting, compared")
+        print("  passthru sweep --help     three prohibition-dense prompts, all settings")
         return 0
 
     args = build_parser().parse_args(raw)
@@ -519,3 +522,157 @@ def run_live(argv: list[str]) -> int:
 # happens to use the other one.
 if __name__ == "__main__":
     raise SystemExit(main())
+
+
+PROHIBITION_PROMPTS = [
+    (
+        "u6",
+        "Add a test file called test_score.py that pins the tokenizer, keep it under 200 "
+        "lines, and never import pytest. Use difflib, not Levenshtein. Make the gap "
+        "between items one rem and the border radius eight pixels. Do not use tabs.",
+    ),
+    (
+        "u7",
+        "Refactor the aligner in align.py and keep the public function name as "
+        "align_utterances. Never collapse insertions into deletions, because that hides "
+        "what the recogniser actually changed. Set the threshold to 0.85, not 0.5. Name "
+        "the helper diff_tokens.",
+    ),
+    (
+        "u8",
+        "Add a migration in db/migrate_0042.sql, and do not edit the down path. Keep the "
+        "retry count at three and keep the backoff exponential rather than fixed. No "
+        "console logging in score.py. Set the batch size to 250 rows, and do not add a "
+        "sleep.",
+    ),
+]
+"""Three prompts built to stress the failure this project is about.
+
+Every one is dense with a prohibition (`never`, `do not`, `No`), a filename, a numeral with
+a unit, a keep instruction, and a rejected alternative -- the shapes the corpus found being
+damaged. They exist because the single most serious observation, `no pytest` arriving as
+`not pytest`, currently rests on a single utterance, which is the one claim a sceptical judge
+can legitimately attack. Three more prompts containing prohibitions is the cheapest way to
+turn an anecdote into a pattern.
+
+Read them aloud verbatim. Pace is the uncontrolled confound in this study and matching it as
+closely as you can is the only thing you can do about it.
+"""
+
+
+def build_sweep_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(
+        prog="passthru sweep",
+        description=(
+            "Walk three prepared prompts through all three Auto Cleanup settings and report "
+            "every inversion found. The prompts are dense with prohibitions, filenames, "
+            "numerals and rejected alternatives, because that is where dictation cleanup does "
+            "its damage. Read each one aloud verbatim at all three settings."
+        ),
+    )
+    parser.add_argument(
+        "--only", type=int, default=None,
+        help="just the Nth prompt, 1-3 (default: all three)",
+    )
+    parser.add_argument(
+        "--record", action="store_true", help="record the microphone during each pass"
+    )
+    parser.add_argument("--mic", default=None, help="microphone name to record from")
+    parser.add_argument("--seconds", type=float, default=45.0, help="recording length")
+    parser.add_argument("--dry-run", action="store_true",
+                        help="print the prompts and exit; dictate nothing")
+    return parser
+
+
+def run_sweep(argv: list[str]) -> int:
+    """Guided sweep over the prepared prompts. Returns a process exit code."""
+    from .advice import compare_settings
+    from .capture import (
+        CaptureError, Capture, LIVE_SETTINGS, append_capture, format_live_verdict,
+        pull_latest_note, record, resolve_mic,
+    )
+    from .scratchpad import WisprError, resolve_token
+
+    args = build_sweep_parser().parse_args(argv)
+    prompts = PROHIBITION_PROMPTS
+    if args.only is not None:
+        if not 1 <= args.only <= len(prompts):
+            print(f"passthru sweep: --only must be 1-{len(prompts)}", file=sys.stderr)
+            return 1
+        prompts = [prompts[args.only - 1]]
+
+    if args.dry_run:
+        for label, text in prompts:
+            print(f"\n--- {label} ---")
+            print(text)
+        print(f"\n{len(prompts)} prompt(s), {len(LIVE_SETTINGS)} settings each, "
+              f"{len(prompts) * len(LIVE_SETTINGS)} runs.")
+        print("Read each aloud verbatim. The 'no'/'never'/'do not' clauses are the point.")
+        return 0
+
+    try:
+        token = resolve_token()
+        mic = resolve_mic(args.mic) if args.record else None
+        all_inversions: list[tuple[str, str, str]] = []
+
+        for label, spoken in prompts:
+            print(f"\n=== {label} ===")
+            print(f"  {spoken}")
+            received: dict[str, str] = {}
+            for index, setting in enumerate(LIVE_SETTINGS, start=1):
+                print(f"\n  pass {index}/{len(LIVE_SETTINGS)}: set Auto Cleanup to {setting}")
+                print("    new Scratchpad note, click in, hold fn, read the prompt above aloud")
+                input("    press Enter once the note has the text... ")
+                audio = None
+                if args.record:
+                    audio = record(
+                        Path("captures") / f"{label}-{setting}.wav", args.seconds, mic=mic
+                    )
+                _, text = pull_latest_note(token)
+                received[setting] = text
+                if audio:
+                    print(f"    audio: {audio}")
+
+            outcome = compare_settings(spoken, received, label)
+            print()
+            print(format_live_verdict(outcome))
+            for setting, inversion in outcome["inversions"]:
+                all_inversions.append((label, setting, f"{inversion.said} -> {inversion.arrived}"))
+
+            for setting, text in received.items():
+                append_capture(
+                    Path("fixtures/corpus.json"),
+                    Capture(
+                        id=f"{label}/{setting}", label=f"{label} at {setting}",
+                        auto_cleanup=setting, spoken=spoken, received=text,
+                        note_id=None,
+                    ),
+                )
+
+        print()
+        print("=" * 60)
+        if all_inversions:
+            print(f"  {len(all_inversions)} PROHIBITION INVERSION(S) FOUND")
+            for label, setting, detail in all_inversions:
+                print(f"    {label} at {setting}: {detail}")
+            print()
+            print("  This is the finding. Every line above it is a mechanism.")
+        else:
+            print("  No inversions in this sweep.")
+            print("  That is a result too: it says the pattern did not reproduce across")
+            print("  three more prompts, which is worth more than one lucky capture.")
+        print(f"  appended to fixtures/corpus.json; rerun 'passthru fixtures/corpus.json'")
+        return 0
+    except (CaptureError, WisprError) as exc:
+        print(f"passthru sweep: {exc}", file=sys.stderr)
+        return 1
+    except KeyboardInterrupt:
+        print("\npassthru sweep: cancelled", file=sys.stderr)
+        return 130
+    except EOFError:
+        print(
+            "passthru sweep: needs a terminal. Use --dry-run to read the prompts, then "
+            "run passthru live --from-files with the delivered text.",
+            file=sys.stderr,
+        )
+        return 1

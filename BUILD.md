@@ -248,6 +248,29 @@ That last one is the one worth remembering. The README had described the inversi
 project's central finding for days while the requirement report quietly omitted it. A claim in
 prose is not a claim in code, and only the code gets tested.
 
+## What is still weak, said plainly
+
+The inversion — `no pytest` arriving as `not pytest` — rests on **one utterance**. That is
+the load-bearing claim and it is the one a sceptical judge can legitimately attack, and no
+amount of tooling fixes it. `passthru sweep` exists for that reason and nothing else: three
+prepared prompts, nine runs, every one containing a prohibition. Either the pattern
+reproduces or it does not, and both outcomes are worth more than the current ambiguity.
+
+Two faults found by a later audit are worth recording here rather than only in the commit
+log, because of what they say about the state of the project before them:
+
+- The page's most serious claim — the hero card reading "0 ERRORS / on u1 both rewrite
+  settings turned no pytest into not pytest" — was hardcoded prose, and `detect_inversions`
+  was never called from `report.py` at all. It could not have been wrong and could not have
+  been right. It is counted from the data now.
+- `align.py` discarded the received span of a replace block unless the tokens matched
+  verbatim, so `8px` delivered in place of `8 pixels` belonged to no utterance and the
+  published table reported a constraint as lost that had arrived. The module's own docstring
+  promised segmentation invariance and was not delivering it.
+
+A measurement tool that finds these in itself, and publishes the finding, is the argument for
+the tool. One that hides them is the thing it criticises.
+
 **Not dictated:** `capture.py`, the test suite, `browser.js`, `scripts/check-parity.mjs`,
 `scripts/mutation.py`, the checker, `passthru live`, the audit, and the rewritten README and
 this file. That is most of the repository. An addendum take covering them would close the gap;

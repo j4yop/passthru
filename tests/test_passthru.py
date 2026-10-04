@@ -1666,3 +1666,34 @@ def test_a_punctuation_only_utterance_does_not_contradict_itself():
     html = render_report(from_corpus(corpus))
     assert "entire utterance lost" not in html
     assert "no tokens to lose" in html
+
+
+# --- passthru sweep ----------------------------------------------------------------
+
+
+def test_every_sweep_prompt_contains_a_prohibition():
+    """The sweep exists to move the inversion off a single utterance.
+
+    If a prompt has no prohibition in it, the run cannot produce the observation the sweep
+    was built to gather, and the hours of dictating it were spent on nothing.
+    """
+    from passthru.cli import PROHIBITION_PROMPTS
+
+    assert len(PROHIBITION_PROMPTS) == 3, "the sweep is three prompts, not a variable list"
+    for label, text in PROHIBITION_PROMPTS:
+        lower = text.lower()
+        assert any(
+            phrase in lower for phrase in ("never", "do not", "don't", " no ")
+        ), f"{label} has no prohibition in it: {text}"
+        # And the shapes that were actually observed being damaged.
+        assert any(ch.isdigit() for ch in text) or any(
+            w in lower for w in ("one ", "two ", "three ", "eight ")
+        ), f"{label} has no numeral in it"
+
+
+def test_the_sweep_offers_every_setting_for_each_prompt():
+    from passthru.capture import LIVE_SETTINGS
+    from passthru.cli import PROHIBITION_PROMPTS
+
+    # 3 prompts x 3 settings = the 9 runs the dry-run announces, derived not asserted.
+    assert len(PROHIBITION_PROMPTS) * len(LIVE_SETTINGS) == 9
