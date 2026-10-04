@@ -208,7 +208,7 @@ function requirements(spoken) {
   // silently dropped requirements from any sentence containing two of them.
   const matches = re => [...text.matchAll(re)];
 
-  for (const m of matches(new RegExp('\\b(?:do not|never|avoid|no need to|stop)\\b(.*?)' + END, 'gs'))) {
+  for (const m of matches(new RegExp('\\b(?:do not|no need to|never|avoid|no|stop)\\b(.*?)' + END, 'gs'))) {
     push('prohibition', clean(m[1]) || m[0].split(/\s+/)[0]);
   }
   for (const m of matches(new RegExp('\\bkeep\\b(.*?)' + END, 'gs'))) {
@@ -263,14 +263,32 @@ function requirementSurvived(kind, value, haystack) {
   return hits / significant.length >= 0.7;
 }
 
+function applyInversions(reqs, spoken, received) {
+  // Without this an inverted prohibition scores as survived: the requirement's value is
+  // `pytest` and `not pytest` contains that token, so a presence test finds it and reports
+  // nothing wrong -- directly above a report saying `no pytest` became `not pytest`.
+  const words = new Set(checkInversion(spoken, received).map(i => i.word));
+  if (!words.size) return reqs;
+  return reqs.map(r => {
+    if (r.kind !== 'prohibition' || !r.survived) return r;
+    const value = new Set(tokenize(r.value));
+    for (const w of words) if (value.has(w)) return { ...r, survived: false };
+    return r;
+  });
+}
+
 function analyse(spoken, received) {
   const src = tokenize(spoken), dst = tokenize(received);
   const { survived, lost } = diffTokens(src, dst);
   const haystack = new Set(dst);
-  const reqs = requirements(spoken).map(r => ({
-    ...r,
-    survived: requirementSurvived(r.kind, r.value, haystack)
-  }));
+  const reqs = applyInversions(
+    requirements(spoken).map(r => ({
+      ...r,
+      survived: requirementSurvived(r.kind, r.value, haystack)
+    })),
+    spoken,
+    received
+  );
   return {
     ratio: src.length ? survived.length / src.length : 1,
     spoken: src.length,
@@ -366,7 +384,8 @@ function checkInversion(spoken, received) {
           said: saidPhrase,
           arrived: hit[0].replace(/\s+/g, ' ').trim(),
           from: match[0].split(/\s+/)[0],
-          to: rule.to
+          to: rule.to,
+          word
         });
         break;
       }
@@ -504,7 +523,7 @@ function compare(spoken, receivedBySetting) {
     out.innerHTML = `
       <div class="verdict">
         <div class="verdict-head">
-          <span class="verdict-verdict">${esc(shown.join('  ·  '))} span ${v.spread.toFixed(1)} points</span>
+          <span class="verdict-verdict">${esc(shown.join('  ·  '))} spread ${v.spread.toFixed(1)} points</span>
           <span class="small">${esc(String(v.analyses[shown[0]].spoken))} tokens spoken</span>
         </div>
         <div class="vbars">${shown.map(s => bar(s, v.analyses[s])).join('')}</div>
@@ -542,6 +561,12 @@ function compare(spoken, receivedBySetting) {
   // It is not Wispr's recogniser and not the package's, which is the reason it is worth
   // having at all. The corpus already records a local recogniser and Wispr disagreeing in
   // both directions, so a third witness is a genuine cross-check rather than a fallback.
+  // Render before the microphone is considered. This used to sit at the very end of the
+  // wrapper, after an early `return` for browsers without speech recognition, so on any
+  // such browser the checker rendered nothing at all until the reader typed something.
+  // Nothing was wrong with the scorer; the page just never asked it a question.
+  run();
+
   const mic = document.getElementById('mic');
   const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
   if (!mic) return;
@@ -575,6 +600,4 @@ function compare(spoken, receivedBySetting) {
     };
     recogniser.start();
   });
-
-  run();
 })();

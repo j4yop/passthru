@@ -24,7 +24,7 @@ const python = execFileSync(
   ["-c", `cd "${here}" && PYTHONPATH=src .venv/bin/python -c "
 import json
 from passthru.align import align_utterances
-from passthru.constraints import detect_inversions, extract, lost, mark_lost
+from passthru.constraints import apply_inversions, detect_inversions, extract, lost, mark_lost
 from passthru.report import from_corpus
 corpus = json.load(open('fixtures/corpus.json'))
 for v in from_corpus(corpus):
@@ -34,7 +34,7 @@ for v in from_corpus(corpus):
     # block. The report additionally attributes losses per utterance, which says *where* a
     # requirement died rather than only whether it did. That is a difference of granularity,
     # not of logic, so comparing the two directly would test nothing.
-    whole = mark_lost(extract(cap['spoken']), run['received'])
+    whole = apply_inversions(mark_lost(extract(cap['spoken']), run['received']), cap['spoken'], run['received'])
     items = sorted({f'{r.kind}:{r.value}' for r in lost(whole)})
     inversions = ','.join(sorted(f'{i.said}>{i.arrived}' for i in
                                  detect_inversions(cap['spoken'], run['received'])))

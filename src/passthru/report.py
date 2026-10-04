@@ -30,7 +30,7 @@ from .score import score_stage
 
 _MODULE_DIR = Path(__file__).resolve().parent
 
-CLAIMED_TESTS = 102
+CLAIMED_TESTS = 103
 """The number of tests this project claims on its report.
 
 Hardcoded, and therefore able to drift, which it did: the page said 58 for several commits

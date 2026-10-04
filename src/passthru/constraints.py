@@ -44,8 +44,12 @@ _FILENAME = re.compile(
 _NUMBER = re.compile(r"(?<![\w.])(\d+(?:\.\d+)?)\b")
 _UNIT_AFTER = re.compile(r"^\s*(\w+)", re.IGNORECASE)
 
+# Bare "no" is in this list and was not for a long time. "no pytest" is the most serious
+# prohibition in the corpus and nothing was extracting it, so the requirement report showed
+# a run whose prohibition had silently inverted as having lost nothing at all. Longer
+# alternatives come first so "no need to" is not read as a bare "no" followed by "need".
 _PROHIBITION = re.compile(
-    r"\b(?:do not|don't|never|avoid|no need to|stop)\b\s*(.*?)(?:\.(?=\s|$)|;|$)",
+    r"\b(?:do not|don't|no need to|never|avoid|no|stop)\b\s*(.*?)(?:\.(?=\s|$)|;|$)",
     re.IGNORECASE | re.DOTALL,
 )
 _KEEP = re.compile(
@@ -287,6 +291,14 @@ class Inversion(NamedTuple):
     replacement: str
     """The word that took the prohibition's place."""
 
+    word: str
+    """The thing that was being forbidden, e.g. `pytest` from `no pytest`.
+
+    Kept because the prohibition requirement's value is the whole cleaned phrase it sits
+    in -- 'pytest because we want run without installing anything' -- which is not
+    contained in 'no pytest'. Comparing the captured word is what lets an inversion mark the
+    requirement it came from."""
+
 
 def detect_inversions(spoken: str, received: str) -> list[Inversion]:
     """Return every prohibition in `spoken` that `received` states as its opposite.
@@ -323,6 +335,38 @@ def detect_inversions(spoken: str, received: str) -> list[Inversion]:
                     said=re.sub(r"\s+", " ", match.group(0)).strip(),
                     arrived=re.sub(r"\s+", " ", replacement.group(0)).strip(),
                     replacement=replacement.group(0).split()[0],
+                    word=word,
                 )
             )
     return found
+
+
+def apply_inversions(
+    requirements: list[Requirement], spoken: str, received: str
+) -> list[Requirement]:
+    """Mark a prohibition as lost when it arrived inverted.
+
+    Without this, an inverted prohibition is scored as *survived*. The requirement's value is
+    `pytest`, and `not pytest` contains the token `pytest`, so a presence test finds it and
+    reports nothing wrong. The run then reads "nothing lost" directly above a report that
+    `no pytest` became `not pytest`, which is the contradiction this project exists to
+    criticise, produced by its own scorer.
+
+    Inverted is strictly worse than lost, so it is marked lost rather than kept as a
+    separate state: the survival ratio already counts it, and the inversion is reported on
+    its own where it can be read.
+    """
+    inversions = detect_inversions(spoken, received)
+    if not inversions:
+        return requirements
+
+    words = {i.word for i in inversions}
+    out: list[Requirement] = []
+    for req in requirements:
+        if req.kind == "prohibition" and req.survived:
+            value = set(_words(req.value))
+            if value and words & value:
+                out.append(req._replace(survived=False))
+                continue
+        out.append(req)
+    return out

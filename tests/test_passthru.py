@@ -1419,3 +1419,76 @@ def test_live_refuses_an_unknown_setting_and_will_not_fake_a_capture():
         capture_output=True, text=True, cwd=root,
     )
     assert "not appended" in saved.stdout
+
+
+def test_the_page_renders_a_verdict_through_its_own_wiring():
+    """Drive the shipped HTML's inline script against a stub DOM.
+
+    The other checker tests call `compare()` directly, which cannot catch a wiring mistake:
+    a renamed element id or a handler that never runs leaves the logic correct and the page
+    dead. This loads the script out of the generated report, feeds it the corpus's own u1
+    text, and asserts on the HTML it produces.
+
+    The stub is deliberately thin. It is enough to prove the elements are found, the
+    handlers fire and the verdict reaches #out -- not enough to be a browser.
+    """
+    import shutil
+    import subprocess
+
+    node = shutil.which("node")
+    if node is None:
+        pytest.skip("node is not installed")
+
+    report = Path(__file__).resolve().parents[1] / "reports" / "index.html"
+    assert report.exists(), "generate the report before running this"
+
+    script = r"""
+const fs = require('fs'), vm = require('vm');
+const html = fs.readFileSync('reports/index.html', 'utf8');
+const js = html.match(/<script>([\s\S]*?)<\/script>/)[1];
+const corpus = JSON.parse(fs.readFileSync('fixtures/corpus.json', 'utf8'));
+const cap = corpus.captures.find(c => c.id === 'u1');
+// By setting, not by position: nothing guarantees the runs are stored in that order.
+const run = s => cap.runs.find(r => r.auto_cleanup === s).received;
+
+function el(id) {
+  return { id, value: '', textContent: '', title: '', disabled: false,
+           dataset: {}, classList: { add(){}, remove(){} },
+           scrollIntoView(){}, addEventListener(){}, focus(){},
+           set innerHTML(v) { this._html = v; }, get innerHTML() { return this._html || ''; } };
+}
+const nodes = { said: el('said'), out: el('out'), mic: el('mic'), clear: el('clear'), try: el('try') };
+for (const s of ['None','Light','Medium']) nodes['got-' + s] = el('got-' + s);
+nodes.said.value = cap.spoken;
+
+const doc = { getElementById: id => nodes[id] || null, querySelectorAll: () => [],
+              documentElement: { lang: 'en' } };
+vm.runInContext(js, vm.createContext({ document: doc, window: {}, console }));
+
+// Two panes must refuse to be called a comparison.
+nodes['got-None'].value = run('None');
+let out = nodes.out.innerHTML;
+if (!/at least two settings/.test(out)) throw new Error('one pane was not refused: ' + out);
+
+// Three panes must produce the published comparison.
+nodes['got-Light'].value = run('Light');
+nodes['got-Medium'].value = run('Medium');
+nodes.out.innerHTML = '';
+vm.runInContext(js, vm.createContext({ document: doc, window: {}, console }));
+out = nodes.out.innerHTML;
+for (const needle of ['95.2%', '65.1%', '59.0%', 'spread 36.1 points']) {
+  if (!out.includes(needle)) throw new Error('verdict missing ' + needle + ' in: ' + out.slice(0, 400));
+}
+// The page says it in prose where the command says INVERTED, so match the prose.
+if (!/arrived inverted/i.test(out)) throw new Error('no inversion reported: ' + out.slice(0, 400));
+if (!out.includes('not pytest')) throw new Error('inversion did not name the phrase');
+
+console.log('ok');
+"""
+    result = subprocess.run(
+        [node, "-e", script],
+        capture_output=True, text=True,
+        cwd=Path(__file__).resolve().parents[1],
+    )
+    assert result.returncode == 0, result.stderr
+    assert "ok" in result.stdout

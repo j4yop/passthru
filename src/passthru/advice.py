@@ -259,7 +259,7 @@ def compare_settings(
     requirement that another lost.
     """
     from .align import align_utterances
-    from .constraints import detect_inversions, extract, lost, mark_lost
+    from .constraints import apply_inversions, detect_inversions, extract, lost, mark_lost
     from .score import score_stage
 
     # Canonical order, safest first, so two sessions print in the same sequence and a diff
@@ -278,7 +278,7 @@ def compare_settings(
         received = received_by_setting[name]
         survival = score_stage(spoken, received)
         ratios[name] = survival.ratio * 100
-        requirements = mark_lost(extract(spoken), received)
+        requirements = apply_inversions(mark_lost(extract(spoken), received), spoken, received)
         lost_by_setting[name] = lost(requirements)
         for inversion in detect_inversions(spoken, received):
             inversions.append((name, inversion))
