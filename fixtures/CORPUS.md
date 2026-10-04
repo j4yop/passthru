@@ -155,7 +155,11 @@ Do not let anyone quote these numbers without them.
    development speech is probably less dense, and the effects here are upper bounds on how
    often they occur.
 
-7. **Audio is excluded from git.** The recordings contain a voice. The text surfaces are
+7. **Audio is excluded from git, and none of it matches these captures anyway.** The
+   recordings contain a voice. Separately: the six local recordings predate the corpus
+   restructure and document the original single paragraph, which is not any capture here —
+   wiring them to a run would be a false attribution, so the report embeds no audio at all.
+   `--record` saves a file for your own verification and does not feed the report. The text surfaces are
    committed because the scorer operates on those.
 
 ## Reproducing

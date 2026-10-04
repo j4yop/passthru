@@ -632,6 +632,8 @@ def run_sweep(argv: list[str]) -> int:
                 received[setting] = text
                 if audio:
                     print(f"    audio: {audio}")
+            print("    (recorded audio is kept for your own verification; the report does not")
+            print("     embed it, because publishing a recording means publishing a voice)")
 
             outcome = compare_settings(spoken, received, label)
             print()
