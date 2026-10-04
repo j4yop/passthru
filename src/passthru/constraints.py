@@ -168,7 +168,14 @@ def extract(utterance: str) -> list[Requirement]:
 
     for match in _KEEP.finditer(text):
         body = match.group(0)
-        add("keep", body, _clean(match.group(1)) or body.split()[1])
+        # Indexed safely. `body.split()[1]` assumed a word follows "keep", so any sentence
+        # ending in the bare word -- "and keep." -- raised IndexError straight out of the
+        # main entry point. That is ordinary dictation, not an edge case, and the shipped
+        # corpus never says it because every capture here phrases it as "keep the file
+        # name as ...". The prohibition branch one line above indexes [0] and cannot fail
+        # for the same reason.
+        words = body.split()
+        add("keep", body, _clean(match.group(1)) or (words[1] if len(words) > 1 else ""))
 
     for match in _CHOICE.finditer(text):
         chosen, rejected = match.group(1), match.group(2)
@@ -308,8 +315,15 @@ def detect_inversions(spoken: str, received: str) -> list[Inversion]:
     check: an inverted prohibition is alarming, so a false one would train the reader to
     ignore it. A one-character prohibition match is skipped for the same reason.
     """
-    said = _normalise(spoken)
-    got = _normalise(received)
+    # Matched against the raw text, lowercased only -- deliberately not through
+    # `_normalise`. That helper rewrites "don't" to "do not" for requirement extraction, so
+    # the `don't X` rule below could never fire: the pattern looked for "don't" in text that
+    # no longer contained it. A prohibition arriving as its affirmative is the most serious
+    # loss this tool reports, and it was blind to the commonest English contraction, while
+    # the browser scorer found it. No corpus run used a contraction, so parity could not see
+    # it either.
+    said = (spoken or "").lower()
+    got = (received or "").lower()
     found: list[Inversion] = []
     seen: set[tuple[str, str]] = set()
 

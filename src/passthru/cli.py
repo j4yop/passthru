@@ -269,6 +269,15 @@ def main(argv: list[str] | None = None) -> int:
     except InputError as exc:
         print(f"passthru: {exc}", file=sys.stderr)
         return 1
+    except UnicodeEncodeError:
+        # json.loads accepts a lone surrogate; html.escape passes it through; the write
+        # cannot encode it. Reported as a data problem rather than a traceback.
+        print(
+            "passthru: the corpus contains text that is not valid Unicode, such as a lone "
+            "surrogate. Re-export it as UTF-8.",
+            file=sys.stderr,
+        )
+        return 1
     except OSError as exc:
         print(f"passthru: could not write {args.out}: {exc.strerror or exc}", file=sys.stderr)
         return 1
@@ -387,8 +396,15 @@ def run_live(argv: list[str]) -> int:
             # Offline mode. Same comparison, no app and no microphone, so the flow can be
             # exercised in a test or on a machine without Wispr Flow installed.
             for item in args.from_files:
-                name, _, text = item.partition("=")
+                name, separator, text = item.partition("=")
                 name = name.strip()
+                if not separator:
+                    print(
+                        f"passthru live: {item!r} is not NAME=TEXT; expected something like "
+                        f"'Light=the text Wispr delivered'",
+                        file=sys.stderr,
+                    )
+                    return 1
                 if name not in LIVE_SETTINGS:
                     print(
                         f"passthru live: {name!r} is not one of "
@@ -397,7 +413,15 @@ def run_live(argv: list[str]) -> int:
                     )
                     return 1
                 received[name] = text
-            spoken = spoken or next(iter(received.values()))
+            if not spoken:
+                # Guarded, because score_stage reports 1.0 for empty input -- correctly, since
+                # nothing spoken cannot be lost -- and that 1.0 was being printed as a 100.0%
+                # score for a run that had never been measured.
+                candidates = [v for v in received.values() if v.strip()]
+                if not candidates:
+                    print("passthru live: no spoken text and no delivered text", file=sys.stderr)
+                    return 1
+                spoken = candidates[0]
         else:
             token = resolve_token()
             mic = resolve_mic(args.mic) if args.record else None
@@ -464,6 +488,16 @@ def run_live(argv: list[str]) -> int:
     except KeyboardInterrupt:
         print("\npassthru live: cancelled", file=sys.stderr)
         return 130
+    except EOFError:
+        # Piped input, < /dev/null, CI. Asking a human to press Enter cannot work here and
+        # the traceback said so less clearly than this does.
+        print(
+            "passthru live: needs a terminal, because each pass waits for you to change the "
+            "setting in Wispr Flow and dictate. Use --from-files to run the comparison "
+            "without the app.",
+            file=sys.stderr,
+        )
+        return 1
 
 
 # Kept at the very end. It used to sit above build_live_parser and run_live, so

@@ -159,30 +159,64 @@ def _word_value(word: str) -> int | None:
 
 
 def _parse_integer(words: list[str]) -> int | None:
-    """Fold unit, tens and hundred words into one value, or None if they are not numeric.
+    """Fold a well-formed English number phrase into a value, or None if it is not one.
 
-    `and` is ignored so that "one hundred and five" reads as 105. A bare "hundred" is
-    rejected: "a hundred" is the natural phrasing for it, and folding the word on its own
-    would turn ordinary prose into a number.
+    The grammar is deliberately strict, because the loose version invented numbers out of
+    ordinary prose. Summing every unit and tens word in the run turned "one two three four"
+    into 10, "nine eleven" into 20 and "twenty ten" into 30 -- so a dictated list of values
+    collapsed into a single invented token, and a delivered list of the same values then
+    scored zero for text that had arrived perfectly well.
+
+    What counts as a number:
+
+    - a lone unit, "nine"
+    - a tens word with a unit of one to nine, "ninety nine"
+    - one to nine hundred, optionally followed by tens and a unit, "two hundred fifty"
+    - "and" is ignored, so "one hundred and five" is 105
+
+    Two unit words, or a tens word followed by ten to nineteen, are not numbers in English
+    and are left alone. "one two three" is a list. "twenty ten" is not said.
     """
     significant = [w for w in words if w != "and"]
     if not significant:
         return None
+    if any(w not in _UNITS and w not in _TENS and w != "hundred" for w in significant):
+        return None
 
-    total = current = 0
-    seen_value = False
-    for word in significant:
-        if word == "hundred":
-            if not seen_value:
-                return None
-            current = (current or 1) * 100
-            continue
-        value = _word_value(word)
-        if value is None:
+    def value_of(run: list[str]) -> int | None:
+        """One group either side of 'hundred': at most a tens and a unit of 1-9."""
+        units = [w for w in run if w in _UNITS]
+        tens = [w for w in run if w in _TENS]
+        if len(units) > 1 or len(tens) > 1:
             return None
-        seen_value = True
-        current += value
-    return total + current
+        total = 0
+        if tens:
+            total += _TENS[tens[0]]
+            if units:
+                # English puts only 1-9 after a tens word. "ninety nine" is 99; "twenty ten"
+                # is not said by anyone.
+                if not 1 <= _UNITS[units[0]] <= 9:
+                    return None
+                total += _UNITS[units[0]]
+        elif units:
+            total += _UNITS[units[0]]
+        return total
+
+    if "hundred" in significant:
+        split = significant.index("hundred")
+        if significant.count("hundred") > 1:
+            return None
+        before = value_of(significant[:split])
+        after = value_of(significant[split + 1:])
+        if before is None or after is None:
+            return None
+        if not significant[:split]:
+            # A bare "hundred" is not a number here; "a hundred" is the phrase, and the
+            # article would be ambiguous with other uses.
+            return None
+        return before * 100 + after
+
+    return value_of(significant)
 
 
 def _parse_number(words: list[str]) -> str | None:

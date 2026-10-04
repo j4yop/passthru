@@ -5,7 +5,12 @@
 // lying about the tool, so the tokenizer rules are kept identical: keep '.' and '_'
 // inside a token, strip them only from the tail, lowercase, and drop capture markers.
 
-const TOKEN = /[A-Za-z0-9_.\\`]+/g;
+// Unicode-aware, because Python's `str` pattern is. The JS class [A-Za-z0-9_] is
+// ASCII-only, so "no café imports" tokenised as "no" "caf" on the page and as "no" "café" in
+// the package -- the page scoped a prohibition to a word the speaker never named, and
+// missed non-ASCII prohibitions entirely. The `u` flag makes \w and \d cover letters and
+// digits in any script.
+const TOKEN = /[\p{L}\p{N}_.\\`]+/gu;
 const TRAILING = /[._]+$/;
 const MARKERS = /end utterance/gi;
 const ESCAPABLE = new Set('\\`*_{}[]()#+-.!|>~'.split(''));
@@ -19,28 +24,50 @@ const NUMBER_WORDS = new Set([...Object.keys(UNITS), ...Object.keys(TENS),
   'hundred', 'point', 'and']);
 
 function wordValue(word) {
-  if (/^[0-9]+$/.test(word)) return parseInt(word, 10);
+  if (/^\p{N}+$/u.test(word)) return parseInt(word, 10);
   if (Object.prototype.hasOwnProperty.call(UNITS, word)) return UNITS[word];
   if (Object.prototype.hasOwnProperty.call(TENS, word)) return TENS[word];
   return null;
 }
 
 function parseInteger(words) {
-  const significant = words.filter(w => w !== 'and');
-  if (!significant.length) return null;
-  let current = 0, seen = false;
-  for (const word of significant) {
-    if (word === 'hundred') {
-      if (!seen) return null;
-      current = (current || 1) * 100;
-      continue;
+  // Strict grammar, mirroring score.py. The loose version summed every unit and tens word
+  // in the run and so invented numbers out of prose: "one two three four" became 10, "nine
+  // eleven" became 20, "twenty ten" became 30.
+  const run = words.filter(w => w !== 'and');
+  if (!run.length) return null;
+  if (run.some(w => !Object.prototype.hasOwnProperty.call(UNITS, w)
+    && !Object.prototype.hasOwnProperty.call(TENS, w) && w !== 'hundred')) return null;
+
+  const group = (list) => {
+    const units = list.filter(w => Object.prototype.hasOwnProperty.call(UNITS, w));
+    const tens = list.filter(w => Object.prototype.hasOwnProperty.call(TENS, w));
+    if (units.length > 1 || tens.length > 1) return null;
+    let total = 0;
+    if (tens.length) {
+      total += TENS[tens[0]];
+      if (units.length) {
+        // English puts only 1-9 after a tens word.
+        const v = UNITS[units[0]];
+        if (v < 1 || v > 9) return null;
+        total += v;
+      }
+    } else if (units.length) {
+      total += UNITS[units[0]];
     }
-    const value = wordValue(word);
-    if (value === null) return null;
-    seen = true;
-    current += value;
+    return total;
+  };
+
+  if (run.includes('hundred')) {
+    if (run.filter(w => w === 'hundred').length > 1) return null;
+    const pivot = run.indexOf('hundred');
+    const before = group(run.slice(0, pivot));
+    const after = group(run.slice(pivot + 1));
+    if (before === null || after === null) return null;
+    if (!run.slice(0, pivot).length) return null;
+    return before * 100 + after;
   }
-  return current;
+  return group(run);
 }
 
 function parseNumber(words) {
@@ -364,11 +391,32 @@ function checkInversion(spoken, received) {
   // than referenced as a backreference: a backreference would number against the pattern
   // being built, which has no group to point at. That bug made this return nothing at all,
   // on the exact capture it exists to catch.
+  // The captured word uses \p{L}\p{N} rather than \w, because JS \w is ASCII-only. With
+  // it, "no café imports" captured "caf" -- the page then reported an inversion on a word the
+  // speaker never scoped -- and "no <CJK> files" captured nothing at all, so a prohibition
+  // in any non-Latin script went unreported on the page while the package reported it.
+  // The captured word uses \p{L}\p{N} rather than \w, because JS \w is ASCII-only:
+  // "no caf\u00e9 imports" captured "caf", so the page reported an inversion on a word
+  // the speaker never scoped, and a prohibition in any non-Latin script was not reported
+  // at all while the package reported it.
+  //
+  // Word boundaries are explicit lookarounds for the same reason. JS \b is defined over
+  // ASCII word characters, so a \b after "caf\u00e9" sits between two non-ASCII characters
+  // and never matches, which silently disabled every rule for non-ASCII input even once
+  // the character class was fixed. Python's \b is Unicode-aware, so the two disagreed.
+  const L = '\\p{L}\\p{N}';
+  const WORD = `[${L}.+#-]+`;
+  const BEFORE = `(?<![${L}])`;
+  const AFTER = `(?![${L}])`;
   const RULES = [
-    { from: /\bno\s+([\w.+#-]+)/g, to: 'not', build: w => new RegExp('\\bnot\\s+' + escapeRegExp(w) + '\\b', 'g') },
-    { from: /\bnever\s+([\w.+#-]+)/g, to: 'always', build: w => new RegExp('\\b(?:always|do)\\s+' + escapeRegExp(w) + '\\b', 'g') },
-    { from: /\bwithout\s+([\w.+#-]+)/g, to: 'with', build: w => new RegExp('\\bwith\\s+' + escapeRegExp(w) + '\\b', 'g') },
-    { from: /\bdon'?t\s+([\w.+#-]+)/g, to: 'do', build: w => new RegExp('\\bdo\\s+' + escapeRegExp(w) + '\\b', 'g') }
+    { from: new RegExp(`${BEFORE}no\\s+(${WORD})`, 'gu'), to: 'not',
+      build: w => new RegExp(`${BEFORE}not\\s+${escapeRegExp(w)}${AFTER}`, 'gu') },
+    { from: new RegExp(`${BEFORE}never\\s+(${WORD})`, 'gu'), to: 'always',
+      build: w => new RegExp(`${BEFORE}(?:always|do)\\s+${escapeRegExp(w)}${AFTER}`, 'gu') },
+    { from: new RegExp(`${BEFORE}without\\s+(${WORD})`, 'gu'), to: 'with',
+      build: w => new RegExp(`${BEFORE}with\\s+${escapeRegExp(w)}${AFTER}`, 'gu') },
+    { from: new RegExp(`${BEFORE}don'?t\\s+(${WORD})`, 'gu'), to: 'do',
+      build: w => new RegExp(`${BEFORE}do\\s+${escapeRegExp(w)}${AFTER}`, 'gu') }
   ];
 
   for (const rule of RULES) {

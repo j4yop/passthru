@@ -1399,7 +1399,12 @@ def render(views: list[RunView], limitations: list[str] | None = None,
     incomplete = sorted(s for s, n in per_setting.items() if n != capture_count)
     coverage = (
         f"{capture_count} utterances, captured at "
-        + ", ".join(f"{n} at {s}" for s, n in per_setting.items())
+        # Escaped. `s` is the corpus's own `auto_cleanup` string, and this sentence is
+        # interpolated raw, so a setting named `<img src=x onerror=...>` executed for anyone
+        # who opened the published report. Every other use of the same value on this page
+        # went through `_e()`; this one did not, and a sweep of all seven corpus-controlled
+        # fields found it as the only live sink.
+        + ", ".join(f"{n} at {_e(s)}" for s, n in per_setting.items())
         + (
             " &mdash; not every utterance reached every setting, so n differs by row and the "
             "rows are not directly comparable."
