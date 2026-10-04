@@ -1,5 +1,5 @@
 {
-  "corpus_version": "1",
+  "corpus_version": "2",
   "created": "2026-10-02",
   "surface_a_note": "Surface A (what was spoken) is reconstructed from the audio by a LOCAL ASR engine that is NOT Wispr Flow's. See CORPUS.md for what that means for interpretation.",
   "expected": {
@@ -183,7 +183,7 @@
     }
   ],
   "limitations": [
-    "Five dictated utterances, one speaker, one session per day. That is enough to show an effect is real and to characterise its spread. It is not enough to characterise its distribution, and no confidence interval is claimed.",
+    "Six captures and sixteen runs, one speaker, one session per day. That is enough to show an effect is real and to characterise its spread. No confidence interval is claimed, and the settings are not evenly sampled: two captures are missing one setting each, so n differs by row.",
     "The utterances are technical instructions the author wrote and then read aloud, deliberately dense with filenames, numerals and prohibitions. They are not a random sample of development speech and the effects here are upper bounds on how often they occur.",
     "The spoken side is the script, not a transcript. A local ASR engine read the same audio and disagreed with Wispr in both directions, so neither is treated as ground truth.",
     "Number folding treats a bare unit word that is also a number word as a number, so 'one file' becomes '1 file'. Both sides fold identically so nothing is lost, but the token count is not the raw count of what was said.",
@@ -193,11 +193,11 @@
     "Audio is not published, because it contains a voice."
   ],
   "findings": [
-    "Cleanup is not reliably worse, it is wildly variable. Across five utterances raw passthrough spans 4.8 points, Light 34.9 and Medium 41.0. Medium scored above raw passthrough on u5.",
+    "Cleanup is not reliably worse, it is wildly variable. Across these captures raw passthrough spans 4.8 points, Light 34.9 and Medium 41.0. On u4 both rewrite settings scored a clean 100% while raw passthrough scored 97.6%, and on u5 all three tied at 100%.",
     "On u1, at both rewrite settings, 'no pytest' arrived as 'not pytest'. That is the opposite instruction, delivered without any error. Raw passthrough delivered it correctly.",
-    "u1 shows the rewrite settings dropping a version constraint, a numeric limit and the filename, while u4 shows them scoring a clean 100%. The same setting produced both.",
+    "On u1 the only requirement either rewrite setting lost was the version constraint 3.10; the filenames and the 0.7 threshold both arrived intact, because what had looked like filename damage was markdown escaping. On u4 the rewrite settings lost nothing at all. The same setting produced both.",
     "Spelled-out numbers and markdown-escaped identifiers were initially scored as losses. Both were scorer faults rather than pipeline damage, and fixing them moved every figure in this corpus.",
-    "The capture marker is itself subject to dictation corruption: 'end utterance' arrived as 'and utterance' in four runs and as a bare 'utterance' in three. Scaffolding that survives into the measurement is scaffolding the tool has to know about.",
+    "The capture marker was itself subject to dictation corruption: across sixteen runs it arrived intact in six, as 'and utterance' in four and as a bare 'utterance' in three, and the remainder carried a trailing conjunction. Those remnants were stripped from the stored text before measurement, because scaffolding that survives into a measurement is scaffolding the tool has to know about.",
     "A unit abbreviation is not a loss: '240 pixels' arriving as 240px still says 240, and '8 pixels' arriving as 8px still says 8. The mirror case, '1rem' becoming 'one rem', is a real loss, because a literal became prose."
   ]
 }

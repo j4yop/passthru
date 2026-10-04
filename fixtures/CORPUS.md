@@ -4,7 +4,9 @@ Six captures, sixteen runs, 2026-10-02 and 2026-10-03. Same speaker, same machin
 microphone (macOS built-in), one session per day. Only Wispr Flow's **Auto Cleanup** level
 changed between runs of a given utterance.
 
-Five utterances were dictated as technical instructions the author wrote and then read aloud.
+The utterances are technical instructions the author wrote and then read aloud. There are six
+captures: five of them, plus one variant of `u3` repeated with Dictionary on, to isolate what
+that toggle does.
 The sixth, `u3d`, is utterance 3 repeated with Dictionary on, to isolate what that toggle
 does. `u3` has no Medium run; `u3d` fills that cell with the dictionary arm recorded instead,
 which is why the run counts per setting are uneven.
@@ -31,7 +33,7 @@ look like "cleanup costs a little". It does not. Each of them also produced a ru
 more than a third of the text, and the tool cannot tell you in advance which run that will be.
 None never fell below 90%.
 
-Medium tied None at a clean 100% on both `u4` and `u5`. That is reported rather than dropped,
+On `u4` both rewrite settings beat None (100.0% against 97.6%), and on `u5` all three tied at 100.0%. That is reported rather than dropped,
 because it is what makes "cleanup is bad for you" unsupportable as a general claim.
 
 ## An inversion, not a loss
@@ -57,8 +59,8 @@ settings, `no pytest` arrived as `not pytest`:
 
 That is the opposite instruction. It is not degradation of a specification, it is a
 substitution of a different one, and nothing in the agent's input indicates a problem
-occurred. Raw passthrough delivered `no pytest` correctly in both `u1` and `u4`, the two
-utterances where the prohibition appeared.
+occurred. Raw passthrough delivered `no pytest` correctly, in `u1` — the only capture in the corpus
+where that prohibition appears.
 
 A tool reporting only percentages scores this run at 65.1% and moves on.
 
@@ -100,30 +102,33 @@ Not everything reduces to quoting, and the distinction is worth keeping:
 
 ## The capture marker is corrupted too
 
-Each capture ends by speaking the marker `end utterance`. It arrives as `end utterance` in
-six runs, as `and utterance` in four, and as a bare `utterance` in three. The strip list only
-handled the intact form, so in the other seven the scaffolding leaked into the measurement.
+Each capture ends by speaking the marker `end utterance`. Across the sixteen runs it arrived
+intact in six, as `and utterance` in four, and as a bare `utterance` in three. The strip list
+only handled the intact form, so in the rest the scaffolding leaked into the measurement.
 
 That is a small thing and it is also the clearest example in the corpus of a failure mode
 nobody checks for: the harness is made of the same speech as the experiment, so anything the
 pipeline mangles, it mangles in the scaffolding too. The remnants were stripped from the
-stored text with the reason recorded, rather than left in the numbers.
+stored text before measurement, and the reason is recorded here rather than left in the
+numbers.
 
 ## What died, per utterance
 
-- `u1`: filename, numeric limit, and the mid-sentence retraction, at both rewrite settings.
+- `u1`: the version constraint `3.10` and the mid-sentence retraction, at both rewrite
+  settings. The filenames and the `0.7` threshold both survived.
 - `u2`: the prohibition arrived intact; the numeric limit did not.
 - `u3` / `u3d`: survives all settings apart from the escaped identifier. Dictionary on
   removed several losses and left the backslash.
-- `u4`: survives every setting. The rewrite settings scored a perfect 100% here.
-- `u5`: every loss is a filename or a numeral written as words. No instruction changed
-  meaning.
+- `u4`: survives every setting, and the rewrite settings scored a perfect 100% here against
+  None's 97.6%.
+- `u5`: nothing lost at any setting. Once the escaping and numeral faults were fixed this
+  capture became a clean 100% everywhere.
 
 ## Honest limitations
 
 Do not let anyone quote these numbers without them.
 
-1. **n = 5, one speaker, one session per day.** Enough to show the effect is real and to
+1. **Six captures, sixteen runs, one speaker, one session per day.** Enough to show the effect is real and to
    measure its spread. Not enough to characterise a distribution. No confidence interval is
    claimed, and the `expected` ranges in `corpus.json` are wide for that reason.
 

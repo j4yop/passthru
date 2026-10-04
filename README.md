@@ -6,8 +6,9 @@ downward.**
 Passthru measures how much of what you *said* survives the trip into your coding agent,
 which requirements died on the way, and whether the setting you chose can predict it.
 
-Five different dictated paragraphs, each passed through Wispr Flow at each cleanup
-setting. 16 runs, one speaker, one session:
+Six captures of dictated technical instructions, passed through Wispr Flow at each cleanup
+setting. 16 runs, one speaker, one session. Two captures are missing one setting each,
+so n differs by row:
 
 | Auto Cleanup | runs | worst | median | best | spread |
 |---|---|---|---|---|---|
@@ -15,12 +16,13 @@ setting. 16 runs, one speaker, one session:
 | **Light** (product default) | 5 | 65.1% | 97.6% | 100.0% | **34.9 points** |
 | **Medium** | 5 | 59.0% | 92.7% | 100.0% | **41.0 points** |
 
-Five utterances turned a clean result into a messier and more useful one. On the first
+More than one utterance turned a clean result into a messier and more useful one. On the first
 utterance, cleanup looked catastrophic and raw passthrough looked perfect. Across five:
 
 **Cleanup is not reliably worse. It is wildly variable, and you cannot tell in advance
-which run will be the bad one.** Medium tied raw passthrough at a clean 100% on utterances
-4 and 5, and halved utterance 1. There is no threshold you can reason your way to, only a
+which run will be the bad one.** On utterance 4 both rewrite settings scored a clean 100%
+while raw passthrough scored 97.6%, and on utterance 5 all three tied. The same settings took
+utterance 1 from 95.2% to 59.0%. There is no threshold you can reason your way to, only a
 distribution, and only one of the three settings has a floor.
 
 The most serious observation is not a missing token. On utterance 1, at both rewrite
@@ -30,7 +32,7 @@ wrong. Raw passthrough delivered it correctly, twice out of two attempts.
 
 **Try it live → [passthru-ebon.vercel.app](https://passthru-ebon.vercel.app)** · source: [`reports/index.html`](reports/index.html)
 
-One self-contained HTML file, 79 KB. No build step and nothing fetched: styles and scorer
+One self-contained HTML file, about 100 KB. No build step and nothing fetched: styles and scorer
 are embedded, so it renders identically from that URL and from a local file path.
 
 On the page you can **check your own dictation against all three settings**: dictate the same
@@ -50,7 +52,7 @@ Deployed on Vercel as a static build; `vercel.json` declares it static so the pr
 ## Why this isn't a tokenizer toy
 
 Token survival on its own is trivia. What makes it matter is *which* tokens die, and the
-answer changed once there were five utterances to look at.
+answer changed as soon as there was more than one utterance to look at.
 
 **Some of what looks like damage is only quoting.** Across every run at every setting,
 identifiers arrived with their underscores escaped: `test\_score.py`, `customer\_id`,
@@ -65,9 +67,11 @@ also not damage: `ninety nine` still says 99, and a unit abbreviation still says
 said. Both were scored as losses too, which is why the figures on this page moved when they
 were fixed.
 
-**Cleanup then deletes whole specifications, unpredictably.** On utterance 1 it dropped the
-filename, the numeric limit, and the mid-sentence retraction. On utterance 4 it lost nothing
-at all and scored 100%.
+**Cleanup then deletes whole specifications, unpredictably.** On utterance 1 the only
+requirement either rewrite setting lost was the version constraint `3.10`, plus the
+mid-sentence retraction. The filenames and the `0.7` threshold both arrived intact, because
+what had looked like filename damage turned out to be markdown escaping. On utterance 4 the
+rewrite settings lost nothing at all and scored 100%.
 
 **And sometimes it improves the output while scoring worse.** A run can lose raw token
 survival by wrapping identifiers in code spans, and arrive more useful for it. That is why
@@ -193,7 +197,7 @@ script.
   token survival on real dictated speech. Those are different quantities and the code never
   conflates them: `advice.render_checked()` raises if any generated sentence contains
   "accuracy", "correctness", or "better output".
-- **n = 5, one speaker, one session per day.** Enough to show the effect is real and to measure its
+- **Six captures, sixteen runs, one speaker, one session per day.** Enough to show the effect is real and to measure its
   spread. Not enough to characterise a distribution, and no confidence interval is claimed.
 - **The spoken side is a script, not a transcript.** A local ASR engine read the same audio
   and disagreed with Wispr in both directions, so neither is treated as ground truth.

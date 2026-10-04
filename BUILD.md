@@ -130,14 +130,14 @@ These are agent-authored and not dictated. If the video is meant to show the who
 project, they need a short addendum take, or the README should say the video covers the
 six core modules.
 
-## After the video: five utterances
+## After the video: more utterances
 
 The three captures behind the video were n=1 per setting, which is the weakest thing about
 the project. Two more utterances were dictated afterwards, which is what changed the project
 most.
 
 **The finding inverted.** One utterance made cleanup look catastrophic and raw passthrough
-look perfect. Five showed that Medium *beat* raw passthrough on `u5`, and that the real story
+look perfect. More showed the rewrite settings *beating* raw passthrough on `u4`, and that the real story
 is variance: None spans 4.8 points, Light 34.9, Medium 41.0. The README and report were
 rewritten around spread rather than averages, and "cleanup costs you 35% of your tokens" —
 a claim that was true of one utterance and false as a general statement — is gone.
@@ -167,7 +167,7 @@ keyed on run id, and run ids repeat across captures, so all but the last of each
 silently overwrote the others and several preset buttons shared one dataset.
 
 Tests written against the first utterance were rewritten rather than deleted, because they
-had encoded the wrong belief. "Raw passthrough is never the worst" is false — `u5` disproves
+had encoded the wrong belief. "Raw passthrough is never the worst" is false — `u4` disproves
 it — and it now says so while asserting the thing that *is* true, that raw passthrough has a
 floor and neither rewrite setting does.
 
@@ -255,7 +255,7 @@ without one, this section is the honest record of it.
 
 ## What is not claimed
 
-- The five captures are n=5, one speaker, one session per day. They show an effect and its
+- The captures are six, sixteen runs, one speaker, one session per day. They show an effect and its
   spread, not a distribution. No confidence interval is claimed.
 - Reading pace was not matched across runs. Uncontrolled.
 - The spoken side is the known script; a separate local ASR engine read the same audio and
