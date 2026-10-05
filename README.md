@@ -123,13 +123,27 @@ passthru fixtures/corpus.json --advice            # plus the setting recommendat
 passthru fixtures/corpus.json --out /tmp/r.html   # anywhere you like
 ```
 
-The checks the project relies on are runnable too:
+### Reproduce it
+
+One command, from a clean checkout. It builds an environment if there isn't one and runs
+everything this page claims:
+
+```bash
+git clone https://github.com/j4yop/passthru && cd passthru
+./scripts/check.sh
+```
+
+That runs the tests, checks the in-page scorer against the package, injects thirteen
+deliberate faults that the suite has to catch, and confirms the committed report is
+byte-identical to a fresh render. It should end in `all checks passed`.
+
+Individually:
 
 ```bash
 pytest                                          # 141 tests
 node scripts/check-parity.mjs                    # page vs package: ratios, requirements,
                                                 #   inversions and three-way verdicts
-.venv/bin/python scripts/mutation.py             # 13 deliberate faults, all must be caught
+python3 scripts/mutation.py                      # 13 deliberate faults, all must be caught
 ```
 
 `scripts/mutation.py` is the interesting one. It breaks the tokeniser in thirteen specific
