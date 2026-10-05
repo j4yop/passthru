@@ -166,8 +166,45 @@ def transcribe(audio_path: Path, model: str = "mlx-community/whisper-small.en-ml
     return (result.get("text") or "").strip()
 
 
-def pull_latest_note(token: str, query: str = "") -> tuple[str, str]:
-    """Return (note_id, body) for the most recently modified matching note."""
+MIN_CAPTURE_OVERLAP = 0.35
+"""How much of what was said the delivered note must contain to count as a capture.
+
+ A capture is only evidence if the pulled note is the one the speaker just dictated into.
+ `pull_latest_note` returns the most recently modified Scratchpad note, which is the wrong
+ note whenever Flow has not finished writing, when the note was dictated into somewhere else,
+ or when an older note happened to be touched last. Nothing detected that, so a failed
+ capture became a confident-looking measurement: one run here returned a two-word note
+ against an eighty-word prompt and the tool printed a survival percentage for it.
+
+ 0.35 is deliberately low. Dictation of the same words lands well above 0.7 in this corpus,
+ and cleanup rewrites rather than replaces, so the floor only has to catch "this is not the
+ note you dictated". The percentage is printed on every capture so the number is visible
+ rather than merely enforced.
+"""
+
+
+def capture_overlap(spoken: str, received: str) -> float:
+    """Fraction of the spoken tokens that appear in the delivered text.
+
+    Token membership rather than a diff, because the question is only "is this the same
+    utterance", and a diff would answer it more precisely than the question needs.
+    """
+    from .score import tokenize
+
+    said = set(tokenize(spoken))
+    if not said:
+        return 1.0
+    return len(said & set(tokenize(received))) / len(said)
+
+
+def pull_latest_note(
+    token: str, query: str = "", expect: str | None = None
+) -> tuple[str, str]:
+    """Return (note_id, body) for the most recently modified matching note.
+
+    With `expect` given, refuses a note that does not contain the words that were spoken.
+    Without it, this function will happily hand back an unrelated note and let it be scored.
+    """
     from .scratchpad import WisprError, get_note, list_notes
 
     try:
@@ -192,6 +229,17 @@ def pull_latest_note(token: str, query: str = "") -> tuple[str, str]:
             raise CaptureError(f"could not read note {note_id}: {exc}") from exc
     if not body:
         raise CaptureError(f"note {note_id} is empty")
+
+    if expect is not None:
+        overlap = capture_overlap(expect, body)
+        if overlap < MIN_CAPTURE_OVERLAP:
+            raise CaptureError(
+                f"the newest Scratchpad note is not the one you just dictated: it shares "
+                f"only {overlap * 100:.0f}% of the words you said, which is below the "
+                f"{MIN_CAPTURE_OVERLAP * 100:.0f}% floor. Nothing was recorded. Check that "
+                f"you dictated into Scratchpad and that Flow has finished writing -- the "
+                f"note starts: {body[:70]!r}"
+            )
     return note_id, body
 
 

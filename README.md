@@ -126,7 +126,7 @@ passthru fixtures/corpus.json --out /tmp/r.html   # anywhere you like
 The checks the project relies on are runnable too:
 
 ```bash
-pytest                                          # 133 tests
+pytest                                          # 136 tests
 node scripts/check-parity.mjs                    # page vs package: ratios, requirements,
                                                 #   inversions and three-way verdicts
 .venv/bin/python scripts/mutation.py             # 13 deliberate faults, all must be caught

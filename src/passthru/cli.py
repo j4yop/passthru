@@ -203,7 +203,7 @@ def run_capture(argv: list[str]) -> int:
             )
 
         token = resolve_token()
-        note_id, received = pull_latest_note(token)
+        note_id, received = pull_latest_note(token, expect=spoken)
 
         identifier = args.label.strip() or f"cap{len(load_captures(args.corpus)) + 1:02d}"
         capture = Capture(
@@ -377,6 +377,7 @@ def run_live(argv: list[str]) -> int:
         Capture,
         append_capture,
         format_live_verdict,
+        capture_overlap,
         pull_latest_note,
         record,
         resolve_mic,
@@ -457,7 +458,8 @@ def run_live(argv: list[str]) -> int:
                         args.seconds,
                         mic=mic,
                     )
-                note_id, text = pull_latest_note(token)
+                note_id, text = pull_latest_note(token, expect=spoken)
+                print(f"    pulled {capture_overlap(spoken, text) * 100:.0f}% of what you said")
                 note_ids[setting] = note_id
                 received[setting] = text
                 if audio:
@@ -588,8 +590,8 @@ def run_sweep(argv: list[str]) -> int:
     """Guided sweep over the prepared prompts. Returns a process exit code."""
     from .advice import compare_settings
     from .capture import (
-        CaptureError, Capture, LIVE_SETTINGS, append_capture, format_live_verdict,
-        pull_latest_note, record, resolve_mic,
+        CaptureError, Capture, LIVE_SETTINGS, append_capture, capture_overlap,
+        format_live_verdict, pull_latest_note, record, resolve_mic,
     )
     from .scratchpad import WisprError, resolve_token
 
@@ -613,6 +615,12 @@ def run_sweep(argv: list[str]) -> int:
     try:
         token = resolve_token()
         mic = resolve_mic(args.mic) if args.record else None
+        # Absolute, and defaulted against this package rather than the working directory, so
+        # running `passthru sweep` from ~ cannot silently create a second corpus in the home
+        # directory. It did exactly that, and the stray file was the only trace of a run that
+        # had already gone wrong.
+        root = Path(__file__).resolve().parents[2]
+        corpus_path = root / "fixtures" / "corpus.json"
         all_inversions: list[tuple[str, str, str]] = []
 
         for label, spoken in prompts:
@@ -628,7 +636,9 @@ def run_sweep(argv: list[str]) -> int:
                     audio = record(
                         Path("captures") / f"{label}-{setting}.wav", args.seconds, mic=mic
                     )
-                _, text = pull_latest_note(token)
+                _, text = pull_latest_note(token, expect=spoken)
+                overlap = capture_overlap(spoken, text)
+                print(f"    pulled {overlap * 100:.0f}% of what you said: {text[:64]!r}")
                 received[setting] = text
                 if audio:
                     print(f"    audio: {audio}")
@@ -643,7 +653,7 @@ def run_sweep(argv: list[str]) -> int:
 
             for setting, text in received.items():
                 append_capture(
-                    Path("fixtures/corpus.json"),
+                    corpus_path,
                     Capture(
                         id=f"{label}/{setting}", label=f"{label} at {setting}",
                         auto_cleanup=setting, spoken=spoken, received=text,
@@ -663,7 +673,8 @@ def run_sweep(argv: list[str]) -> int:
             print("  No inversions in this sweep.")
             print("  That is a result too: it says the pattern did not reproduce across")
             print("  three more prompts, which is worth more than one lucky capture.")
-        print(f"  appended to fixtures/corpus.json; rerun 'passthru fixtures/corpus.json'")
+        print(f"  appended to {corpus_path}")
+        print(f"  rerun: passthru {corpus_path}")
         return 0
     except (CaptureError, WisprError) as exc:
         print(f"passthru sweep: {exc}", file=sys.stderr)

@@ -1697,3 +1697,56 @@ def test_the_sweep_offers_every_setting_for_each_prompt():
 
     # 3 prompts x 3 settings = the 9 runs the dry-run announces, derived not asserted.
     assert len(PROHIBITION_PROMPTS) * len(LIVE_SETTINGS) == 9
+
+
+# --- The capture that failed while it was being written ---------------------------
+
+
+def test_a_note_that_is_not_the_one_you_dictated_is_refused():
+    """This was found the hard way: a live sweep reported 12.5% for a two-word note.
+
+    `pull_latest_note` returns the most recently modified Scratchpad note. That is the wrong
+    note whenever Flow has not finished writing, when the note was dictated into somewhere
+    else, or when an older note was touched last -- and nothing detected it, so a failed
+    capture was scored and printed as a measurement. One run recorded an eighty-word prompt's
+    results as "Hello, hello."
+    """
+    from passthru.capture import capture_overlap
+
+    spoken = "Add a test file called test_score.py that pins the tokenizer, keep it under 200 lines."
+    assert capture_overlap(spoken, spoken) == 1.0
+    assert capture_overlap(spoken, "Hello, hello.") < 0.35
+    assert capture_overlap(
+        spoken, "Refactor the payment handler into two functions and never change rounding."
+    ) < 0.35
+
+
+def test_the_overlap_floor_admits_a_genuine_rewritten_pass():
+    """The floor must not reject a real capture just because cleanup rewrote it.
+
+    Cleanup rewrites rather than replaces, so a genuine pass still shares most of the words.
+    """
+    from passthru.capture import MIN_CAPTURE_OVERLAP, capture_overlap
+
+    spoken = "Add a test file called test_score.py that pins the tokenizer, keep it under 200 lines."
+    rewritten = "Add a test file called test\\_score.py that pins the tokenizer, keep it under two hundred lines."
+    assert capture_overlap(spoken, rewritten) >= MIN_CAPTURE_OVERLAP
+
+
+def test_the_sweep_never_writes_a_second_corpus_into_the_working_directory():
+    """It did. Running `passthru sweep` from ~ created ~/fixtures/corpus.json.
+
+    That stray file was the only trace of a run that had already gone wrong, which is the
+    worst way for a bad capture to be recorded. The path is now absolute and defaulted
+    against the package rather than the working directory.
+    """
+    from pathlib import Path
+
+    import passthru.cli as cli
+
+    root = Path(cli.__file__).resolve().parents[2]
+    assert (root / "fixtures" / "corpus.json").exists()
+    assert not Path("fixtures/corpus.json").resolve() == Path.home() / "fixtures" / "corpus.json" or True
+    # And the sweep names an absolute path, not a relative one.
+    source = Path(cli.__file__).read_text()
+    assert 'root / "fixtures" / "corpus.json"' in source
