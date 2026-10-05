@@ -166,25 +166,23 @@ def transcribe(audio_path: Path, model: str = "mlx-community/whisper-small.en-ml
     return (result.get("text") or "").strip()
 
 
-MIN_CAPTURE_OVERLAP = 0.35
+MIN_CAPTURE_OVERLAP = 0.5
 """How much of what was said the delivered note must contain to count as a capture.
 
- A capture is only evidence if the pulled note is the one the speaker just dictated into.
- `pull_latest_note` returns the most recently modified Scratchpad note, which is the wrong
- note whenever Flow has not finished writing, when the note was dictated into somewhere else,
- or when an older note happened to be touched last. Nothing detected that, so a failed
- capture became a confident-looking measurement: one run here returned a two-word note
- against an eighty-word prompt and the tool printed a survival percentage for it.
+Half of the *discriminating* words, where discriminating means "not shared with most of the
+other notes". See `discriminating_overlap` for why that qualifier is doing the real work.
+"""
 
- 0.35 is deliberately low. Dictation of the same words lands well above 0.7 in this corpus,
- and cleanup rewrites rather than replaces, so the floor only has to catch "this is not the
- note you dictated". The percentage is printed on every capture so the number is visible
- rather than merely enforced.
+MIN_TOKEN_SUPPORT = 0.5
+"""A token shared by more than this fraction of candidate notes carries no information.
+
+Data-driven rather than a hand-kept stopword list, so it adapts to whatever is in the
+Scratchpad instead of to a guess about English.
 """
 
 
 def tokenize_for_match(text: str) -> list[str]:
-    """Tokens used only for finding which note is the right one."""
+    """Tokens used only for identifying which note is the right one."""
     from .score import tokenize
 
     return tokenize(text or "")
@@ -223,11 +221,53 @@ def newest_note_summary(token: str) -> str:
     )
 
 
+def discriminating_overlap(
+    spoken: str, candidates: list[str], spoken_is_candidate: bool = True
+) -> list[float]:
+    """Score `spoken` against each candidate, ignoring words that cannot tell them apart.
+
+    The first version of this gate counted every shared token. That is wrong in a way that
+    only shows up against real data: "keep", "never", "do not" and "the" appear in most
+    technical notes, so the longer an unrelated note was the higher it scored. Measured
+    against this project's own Scratchpad, two of the three sweep prompts scored above the
+    floor against notes they were never dictated into -- one of them 49% against a note about
+    a sidebar. The sweep would have recorded a fabricated note as evidence for the project's
+    central finding.
+
+    So a token only counts when it is rare among the candidates. If most notes contain it, it
+    cannot distinguish them, and including it only rewards whichever note is longest.
+    """
+    from .score import tokenize
+
+    tokenised = [set(tokenize(text or "")) for text in candidates]
+    if not tokenised:
+        return [1.0 if not tokenize(spoken or "") else 0.0]
+
+    said = set(tokenize(spoken or ""))
+    if not said:
+        return [1.0] * len(candidates)
+
+    support: dict[str, int] = {}
+    for tokens in tokenised:
+        for token in tokens:
+            support[token] = support.get(token, 0) + 1
+
+    threshold = MIN_TOKEN_SUPPORT * len(tokenised)
+    useful = {token for token in said if support.get(token, 0) <= threshold}
+    # If everything the speaker said is common to every note, there is nothing to
+    # discriminate on and the honest answer is that the note cannot be identified.
+    if not useful:
+        return [0.0] * len(candidates)
+
+    return [len(useful & tokens) / len(useful) for tokens in tokenised]
+
+
 def capture_overlap(spoken: str, received: str) -> float:
     """Fraction of the spoken tokens that appear in the delivered text.
 
-    Token membership rather than a diff, because the question is only "is this the same
-    utterance", and a diff would answer it more precisely than the question needs.
+    Token membership, not a diff: the question is only "is this the same utterance". Kept for
+    reporting to the operator. Identification uses `discriminating_overlap`, which does not
+    reward a long note for containing common words.
     """
     from .score import tokenize
 
@@ -285,7 +325,7 @@ def pull_best_note(
                 continue
         if not body:
             continue
-        if said and len(said & set(tokenize_for_match(body))) / len(said) < 0.05:
+        if said and len(said & set(tokenize_for_match(body))) / len(said) < 0.02:
             continue
         shortlist.append((note_id, body))
 
@@ -301,8 +341,9 @@ def pull_best_note(
     if not candidates:
         raise CaptureError("every recent Scratchpad note is empty")
 
+    scores = discriminating_overlap(spoken, [body for _, body in candidates])
     scored = sorted(
-        ((capture_overlap(spoken, body), note_id, body) for note_id, body in candidates),
+        ((score, note_id, body) for score, (note_id, body) in zip(scores, candidates)),
         key=lambda row: row[0],
         reverse=True,
     )

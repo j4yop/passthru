@@ -1860,3 +1860,50 @@ def test_a_transient_503_is_retried_rather_than_losing_a_capture():
     assert scratchpad.BACKOFF > 0
     # And the codes treated as transient must include the one actually observed.
     assert 503 in (429, 500, 502, 503, 504)
+
+
+def test_the_gate_ignores_words_that_cannot_identify_a_note():
+    """The gate counted every shared token, so a longer wrong note scored higher.
+
+    Measured against this project's own Scratchpad, two of the three sweep prompts scored
+    above the floor against notes they had never been dictated into -- 49% against a note
+    about a sidebar. The sweep would have recorded a fabricated note as evidence for the
+    project's central finding, which is the one thing this tool must never do.
+
+    "keep", "never", "do not" and "the" appear in most technical notes, so they cannot
+    discriminate. Only tokens rare among the candidates count.
+    """
+    from passthru.capture import discriminating_overlap
+
+    prompt = (
+        "Add a test file called test_score.py that pins the tokenizer, keep it under 200 "
+        "lines, and never import pytest. Use difflib, not Levenshtein. Do not use tabs."
+    )
+    # Unrelated but similarly shaped: same function words, none of the specifics.
+    wrong = [
+        "Style the sidebar so the panel is 240 pixels wide and keep it from collapsing on "
+        "mobile, because that breaks the layout and never let it collapse on small screens "
+        "where the panel needs to stay 240 pixels wide at all times for the layout.",
+        "Set the timeout to 30 seconds in the deploy config, and never commit the staging "
+        "credentials because that would leak them and you should keep the deploy config in "
+        "the repository under version control at all times for the staging environment.",
+    ]
+    scores = discriminating_overlap(prompt, wrong)
+    assert max(scores) < 0.5, f"an unrelated note scored {max(scores):.0%}"
+
+    # And the genuine article, among decoys, is unambiguous.
+    real = prompt + " Make the gap between items one rem."
+    scores = discriminating_overlap(prompt, wrong + [real])
+    assert scores[-1] == 1.0
+    assert scores[-1] > max(scores[:-1])
+
+
+def test_an_overlap_gate_that_rejects_everything_is_a_different_failure():
+    """With every candidate identical, nothing can be discriminated, and saying so beats
+    guessing. The alternative -- falling back to token membership -- is what let a sidebar
+    note pass as a test-file prompt."""
+    from passthru.capture import discriminating_overlap
+
+    prompt = "keep the file name as score.py"
+    same = [prompt, prompt.upper(), prompt + " please"]
+    assert max(discriminating_overlap(prompt, same)) < 0.5
