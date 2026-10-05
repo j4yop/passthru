@@ -197,13 +197,80 @@ def capture_overlap(spoken: str, received: str) -> float:
     return len(said & set(tokenize(received))) / len(said)
 
 
-def pull_latest_note(
-    token: str, query: str = "", expect: str | None = None
-) -> tuple[str, str]:
+def pull_best_note(
+    token: str, spoken: str, query: str = "", how_many: int = 12
+) -> tuple[str, str, float]:
+    """Return (note_id, body, overlap) for the Scratchpad note that best matches `spoken`.
+
+    Taking the most recently modified note was wrong, and it failed in the field. It is the
+    wrong note whenever Flow has not finished writing the new one, whenever the note was
+    dictated into somewhere else, or whenever an older note happens to have been touched
+    more recently. Every one of those produced a confident measurement of the wrong text:
+    one pass here was reported as 12.5% survival for "Hello, hello." against an eighty-word
+    prompt, and another pulled the previous capture's note under the current capture's id.
+
+    So the notes are scored against what was actually said and the best match wins, rather
+    than the first. Ordering is not evidence of identity. When the best match is still below
+    the floor the error lists what it did find, because at that point the useful thing to
+    know is which notes exist and what is in them.
+    """
+    from .scratchpad import WisprError, get_note, list_notes
+
+    try:
+        notes = list_notes(token, query)
+    except WisprError as exc:
+        raise CaptureError(f"could not read Scratchpad: {exc}") from exc
+
+    if not notes:
+        raise CaptureError(
+            "Scratchpad has no notes"
+            + (f" matching {query!r}" if query else "")
+            + "; dictate into Scratchpad before capturing"
+        )
+
+    # Read bodies for the candidates that have none, then score them all.
+    candidates: list[tuple[str, str]] = []
+    for note in notes[:how_many]:
+        note_id = str(note.get("id") or "")
+        body = (note.get("content") or "").strip()
+        if not body and note_id:
+            try:
+                body = (get_note(token, note_id).get("content") or "").strip()
+            except WisprError:
+                continue
+        if body:
+            candidates.append((note_id, body))
+
+    if not candidates:
+        raise CaptureError("every recent Scratchpad note is empty")
+
+    scored = sorted(
+        ((capture_overlap(spoken, body), note_id, body) for note_id, body in candidates),
+        key=lambda row: row[0],
+        reverse=True,
+    )
+    overlap, note_id, body = scored[0]
+
+    if overlap < MIN_CAPTURE_OVERLAP:
+        found = "; ".join(
+            f"{score * 100:.0f}% {text[:48]!r}" for score, _, text in scored[:4]
+        )
+        raise CaptureError(
+            f"no recent Scratchpad note looks like what you just dictated. The best match "
+            f"shares {overlap * 100:.0f}% of your words, below the "
+            f"{MIN_CAPTURE_OVERLAP * 100:.0f}% floor, and nothing was recorded.\n"
+            f"    notes checked, best first: {found}\n"
+            f"    check that you dictated into Scratchpad, that Flow finished writing, and "
+            f"that you started a new note rather than appending to an old one"
+        )
+    return note_id, body, overlap
+
+
+def pull_latest_note(token: str, query: str = "") -> tuple[str, str]:
     """Return (note_id, body) for the most recently modified matching note.
 
-    With `expect` given, refuses a note that does not contain the words that were spoken.
-    Without it, this function will happily hand back an unrelated note and let it be scored.
+    Kept for callers that genuinely want the newest note. Anything scoring a capture must
+    use `pull_best_note`, because "newest" is not "the one you dictated".
     """
     from .scratchpad import WisprError, get_note, list_notes
 
@@ -229,17 +296,6 @@ def pull_latest_note(
             raise CaptureError(f"could not read note {note_id}: {exc}") from exc
     if not body:
         raise CaptureError(f"note {note_id} is empty")
-
-    if expect is not None:
-        overlap = capture_overlap(expect, body)
-        if overlap < MIN_CAPTURE_OVERLAP:
-            raise CaptureError(
-                f"the newest Scratchpad note is not the one you just dictated: it shares "
-                f"only {overlap * 100:.0f}% of the words you said, which is below the "
-                f"{MIN_CAPTURE_OVERLAP * 100:.0f}% floor. Nothing was recorded. Check that "
-                f"you dictated into Scratchpad and that Flow has finished writing -- the "
-                f"note starts: {body[:70]!r}"
-            )
     return note_id, body
 
 

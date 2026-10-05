@@ -203,7 +203,8 @@ def run_capture(argv: list[str]) -> int:
             )
 
         token = resolve_token()
-        note_id, received = pull_latest_note(token, expect=spoken)
+        note_id, received, overlap = pull_best_note(token, spoken)
+        print(f"pulled {overlap * 100:.0f}% of what you said from note {note_id}")
 
         identifier = args.label.strip() or f"cap{len(load_captures(args.corpus)) + 1:02d}"
         capture = Capture(
@@ -377,8 +378,7 @@ def run_live(argv: list[str]) -> int:
         Capture,
         append_capture,
         format_live_verdict,
-        capture_overlap,
-        pull_latest_note,
+        pull_best_note,
         record,
         resolve_mic,
     )
@@ -458,8 +458,8 @@ def run_live(argv: list[str]) -> int:
                         args.seconds,
                         mic=mic,
                     )
-                note_id, text = pull_latest_note(token, expect=spoken)
-                print(f"    pulled {capture_overlap(spoken, text) * 100:.0f}% of what you said")
+                note_id, text, overlap = pull_best_note(token, spoken)
+                print(f"    pulled {overlap * 100:.0f}% of what you said from note {note_id}")
                 note_ids[setting] = note_id
                 received[setting] = text
                 if audio:
@@ -590,8 +590,8 @@ def run_sweep(argv: list[str]) -> int:
     """Guided sweep over the prepared prompts. Returns a process exit code."""
     from .advice import compare_settings
     from .capture import (
-        CaptureError, Capture, LIVE_SETTINGS, append_capture, capture_overlap,
-        format_live_verdict, pull_latest_note, record, resolve_mic,
+        CaptureError, Capture, LIVE_SETTINGS, append_capture, format_live_verdict,
+        pull_best_note, record, resolve_mic,
     )
     from .scratchpad import WisprError, resolve_token
 
@@ -636,9 +636,9 @@ def run_sweep(argv: list[str]) -> int:
                     audio = record(
                         Path("captures") / f"{label}-{setting}.wav", args.seconds, mic=mic
                     )
-                _, text = pull_latest_note(token, expect=spoken)
-                overlap = capture_overlap(spoken, text)
-                print(f"    pulled {overlap * 100:.0f}% of what you said: {text[:64]!r}")
+                _, text, overlap = pull_best_note(token, spoken)
+                print(f"    pulled {overlap * 100:.0f}% of what you said from the note "
+                      f"containing: {text[:56]!r}")
                 received[setting] = text
                 if audio:
                     print(f"    audio: {audio}")

@@ -1750,3 +1750,64 @@ def test_the_sweep_never_writes_a_second_corpus_into_the_working_directory():
     # And the sweep names an absolute path, not a relative one.
     source = Path(cli.__file__).read_text()
     assert 'root / "fixtures" / "corpus.json"' in source
+
+
+def test_the_right_note_is_found_even_when_it_is_not_the_newest(monkeypatch):
+    """Ordering is not evidence of identity. This was the actual failure, twice.
+
+    The tool took the most recently modified Scratchpad note. In the field that returned
+    "Today is 5th October 2026. Weather is beautiful. Hello, hello." for an eighty-word
+    prompt, and on another pass the previous capture's payment-handler note under the
+    current capture's id. Both were reported as measurements.
+
+    Notes are now scored against what was said and the best match wins.
+    """
+    import passthru.capture as capture
+    import passthru.scratchpad as scratchpad
+
+    spoken = (
+        "Add a test file called test_score.py that pins the tokenizer, keep it under 200 "
+        "lines, and never import pytest."
+    )
+    notes = [
+        {"id": "newer", "content": "Today is 5th October 2026. Hello, hello."},
+        {"id": "older", "content": "Refactor the payment handler into two functions."},
+        {"id": "right", "content": spoken},
+    ]
+    monkeypatch.setattr(scratchpad, "list_notes", lambda token, query="": notes)
+    note_id, body, overlap = capture.pull_best_note("t", spoken)
+    assert note_id == "right"
+    assert overlap > 0.9
+
+
+def test_no_matching_note_is_refused_with_what_was_actually_found(monkeypatch):
+    """The error has to say which notes exist, or the operator cannot act on it."""
+    import passthru.capture as capture
+    import passthru.scratchpad as scratchpad
+
+    spoken = "Add a test file called test_score.py that pins the tokenizer."
+    notes = [
+        {"id": "a", "content": "Today is 5th October 2026. Hello, hello."},
+        {"id": "b", "content": "Refactor the payment handler into two functions."},
+    ]
+    monkeypatch.setattr(scratchpad, "list_notes", lambda token, query="": notes)
+    with pytest.raises(capture.CaptureError) as caught:
+        capture.pull_best_note("t", spoken)
+    message = str(caught.value)
+    assert "nothing was recorded" in message
+    assert "notes checked" in message
+
+
+def test_the_sweep_does_not_write_relative_to_the_working_directory():
+    """It created ~/fixtures/corpus.json when run from the home directory.
+
+    That stray file was the only trace of a run that had already gone wrong, which is the
+    worst possible place for the evidence of a bad capture to end up.
+    """
+    from pathlib import Path
+
+    import passthru.cli as cli
+
+    source = Path(cli.__file__).read_text()
+    assert 'root / "fixtures" / "corpus.json"' in source
+    assert 'append_capture(\n                    Path("fixtures/corpus.json")' not in source
