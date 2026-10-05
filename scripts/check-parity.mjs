@@ -18,10 +18,19 @@ import { execFileSync } from "node:child_process";
 
 const here = new URL("..", import.meta.url).pathname;
 
+// Resolved rather than hardcoded to .venv, which does not exist in a fresh clone.
+const PYTHON = execFileSync("bash", ["-c", `cd "${here}" && . scripts/_python.sh`], {
+  encoding: "utf8"
+}).trim();
+if (!PYTHON) {
+  console.error("no Python interpreter found. Install one, or set PASSTHRU_PYTHON.");
+  process.exit(1);
+}
+
 // The package's own view of every run: survival ratio and the requirements it lost.
 const python = execFileSync(
   "bash",
-  ["-c", `cd "${here}" && PYTHONPATH=src .venv/bin/python -c "
+  ["-c", `cd "${here}" && PYTHONPATH=src ${PYTHON} -c "
 import json
 from passthru.align import align_utterances
 from passthru.constraints import apply_inversions, detect_inversions, extract, lost, mark_lost
@@ -78,7 +87,7 @@ globalThis.checkInversion = checkInversion;
 // comments in capture.py and browser.js both claimed this harness prevented exactly that.
 const pythonSettings = execFileSync(
   "bash",
-  ["-c", `cd "${here}" && PYTHONPATH=src .venv/bin/python -c "
+  ["-c", `cd "${here}" && PYTHONPATH=src ${PYTHON} -c "
 from passthru.capture import LIVE_SETTINGS
 print(','.join(LIVE_SETTINGS))
 "`],
@@ -167,7 +176,7 @@ for (const capture of corpus.captures ?? []) {
 const pythonVerdicts = new Map(
   execFileSync(
     "bash",
-    ["-c", `cd "${here}" && PYTHONPATH=src .venv/bin/python -c "
+    ["-c", `cd "${here}" && PYTHONPATH=src ${PYTHON} -c "
 import json
 from passthru.advice import compare_settings
 corpus = json.load(open('fixtures/corpus.json'))

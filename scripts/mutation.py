@@ -16,6 +16,7 @@ Usage: python scripts/mutation.py
 
 from __future__ import annotations
 
+import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -119,6 +120,9 @@ MUTATIONS: list[tuple[str, str, str, str, str]] = [
 
 
 def suite_fails() -> bool:
+    # This script's own interpreter, not a pytest from PATH. Resolving pytest by name
+    # picked up a different environment which could not import passthru, and the baseline
+    # check then reported "FAILS on unmutated source" for a clone that was fine.
     result = subprocess.run(
         [sys.executable, "-m", "pytest", "-q", "--no-header", "-x"],
         cwd=ROOT, capture_output=True, text=True,
