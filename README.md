@@ -140,7 +140,7 @@ byte-identical to a fresh render. It should end in `all checks passed`.
 Individually:
 
 ```bash
-pytest                                          # 141 tests
+pytest                                          # 142 tests
 node scripts/check-parity.mjs                    # page vs package: ratios, requirements,
                                                 #   inversions and three-way verdicts
 python3 scripts/mutation.py                      # 13 deliberate faults, all must be caught

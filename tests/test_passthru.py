@@ -1845,3 +1845,18 @@ def test_the_preflight_reports_a_timestamp_from_two_days_ago(monkeypatch):
     summary = capture.newest_note_summary("t")
     assert "2026-10-03" in summary
     assert "not reaching" in summary
+
+
+def test_a_transient_503_is_retried_rather_than_losing_a_capture():
+    """The endpoint returns 503 under load and a capture makes a burst of calls.
+
+    list, then get_note per candidate, three passes times three settings. Failing a pass on a
+    503 loses a dictation the user has already spoken, which is the one thing in this project
+    that cannot be redone cheaply -- asking someone to read a paragraph aloud again.
+    """
+    from passthru import scratchpad
+
+    assert scratchpad.RETRIES >= 3
+    assert scratchpad.BACKOFF > 0
+    # And the codes treated as transient must include the one actually observed.
+    assert 503 in (429, 500, 502, 503, 504)

@@ -12,9 +12,20 @@ import json
 import os
 import sys
 import urllib.error
+import time
 import urllib.request
 from pathlib import Path
 from typing import Any
+
+RETRIES = 4
+"""How many times a transient HTTP failure is retried.
+
+The endpoint returns 503 under load and a capture makes a burst of calls. Four attempts with
+exponential backoff is roughly fifteen seconds, which is shorter than re-reading a paragraph.
+"""
+
+BACKOFF = 1.5
+"""Seconds before the first retry; doubles each attempt."""
 
 ENDPOINT = "https://api.wisprflow.ai/connect/mcp"
 PROTOCOL_VERSION = "2026-07-28"
@@ -91,7 +102,31 @@ def _post(token: str, payload: dict[str, Any], timeout: float = 30.0) -> dict[st
                 f"Wispr rejected the access token (HTTP {exc.code}); refresh it with: "
                 "mcporter auth wispr"
             ) from exc
-        raise WisprError(f"Wispr returned HTTP {exc.code}") from exc
+        if exc.code in (429, 500, 502, 503, 504):
+            # Transient. The Wispr MCP endpoint returns 503 under load, and a capture run
+            # makes a burst of calls: list, then get_note per candidate, three passes times
+            # three settings. Failing the pass on a 503 loses a dictation the user has
+            # already spoken, which is the one thing in this project that cannot be redone
+            # cheaply. Retried, because the alternative is asking someone to read a
+            # paragraph aloud again.
+            last = exc
+            for attempt in range(RETRIES):
+                time.sleep(BACKOFF * (2 ** attempt))
+                try:
+                    with urllib.request.urlopen(request, timeout=timeout) as response:
+                        raw = response.read().decode("utf-8", "replace")
+                    break
+                except urllib.error.HTTPError as retry_exc:
+                    last = retry_exc
+                except urllib.error.URLError as retry_exc:
+                    last = retry_exc
+            else:
+                raise WisprError(
+                    f"Wispr returned HTTP {getattr(last, 'code', '?')} after "
+                    f"{RETRIES} retries; it may be rate limiting a burst of calls"
+                ) from last
+        else:
+            raise WisprError(f"Wispr returned HTTP {exc.code}") from exc
     except urllib.error.URLError as exc:
         raise WisprError(f"could not reach Wispr at {ENDPOINT}: {exc.reason}") from exc
 
