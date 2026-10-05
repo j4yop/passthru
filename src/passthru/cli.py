@@ -583,6 +583,12 @@ def build_sweep_parser() -> argparse.ArgumentParser:
     parser.add_argument("--seconds", type=float, default=45.0, help="recording length")
     parser.add_argument("--dry-run", action="store_true",
                         help="print the prompts and exit; dictate nothing")
+    parser.add_argument("--check", action="store_true",
+                        help=(
+                            "preflight: report the newest Scratchpad note and whether your "
+                            "dictation is reaching it. Run this after dictating once, before "
+                            "spending nine passes on the full sweep."
+                        ))
     return parser
 
 
@@ -602,6 +608,21 @@ def run_sweep(argv: list[str]) -> int:
             print(f"passthru sweep: --only must be 1-{len(prompts)}", file=sys.stderr)
             return 1
         prompts = [prompts[args.only - 1]]
+
+    if args.check:
+        from .capture import newest_note_summary
+        from .scratchpad import WisprError, resolve_token
+
+        try:
+            print(newest_note_summary(resolve_token()))
+        except (CaptureError, WisprError) as exc:
+            print(f"passthru sweep --check: {exc}", file=sys.stderr)
+            return 1
+        print()
+        print("Dictate one of the prompts into a Scratchpad note, run this again, and check")
+        print("that the timestamp and text changed. If they did not, the sweep will not")
+        print("record anything, and repeating it will not help.")
+        return 0
 
     if args.dry_run:
         for label, text in prompts:

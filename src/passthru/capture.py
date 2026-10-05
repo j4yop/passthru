@@ -183,6 +183,46 @@ MIN_CAPTURE_OVERLAP = 0.35
 """
 
 
+def tokenize_for_match(text: str) -> list[str]:
+    """Tokens used only for finding which note is the right one."""
+    from .score import tokenize
+
+    return tokenize(text or "")
+
+
+def newest_note_summary(token: str) -> str:
+    """One line about the most recent note, for a preflight check.
+
+    Answers the question that wasted a whole sweep: did my dictation land in Scratchpad at
+    all? The timestamp is the useful part, because a note from yesterday means the dictation
+    went somewhere else, and no amount of retrying inside this tool will fix that.
+    """
+    from .scratchpad import WisprError, get_note, list_notes
+
+    try:
+        notes = list_notes(token, "")
+    except WisprError as exc:
+        raise CaptureError(f"could not read Scratchpad: {exc}") from exc
+    if not notes:
+        return "Scratchpad has no notes at all."
+    newest = notes[0]
+    note_id = str(newest.get("id") or "")
+    modified = str(newest.get("modified_at") or "unknown time")
+    body = str(newest.get("content_excerpt") or "").strip()
+    if not body and note_id:
+        try:
+            body = (get_note(token, note_id).get("content") or "").strip()
+        except WisprError:
+            body = ""
+    return (
+        f"newest note {note_id} modified {modified}\n"
+        f"    {body[:90]!r}\n"
+        f"    if this is not what you just dictated, your dictation is not reaching "
+        f"Scratchpad: check that you are dictating into a Scratchpad note and not a "
+        f"different Flow surface."
+    )
+
+
 def capture_overlap(spoken: str, received: str) -> float:
     """Fraction of the spoken tokens that appear in the delivered text.
 
@@ -228,18 +268,35 @@ def pull_best_note(
             + "; dictate into Scratchpad before capturing"
         )
 
-    # Read bodies for the candidates that have none, then score them all.
-    candidates: list[tuple[str, str]] = []
+    # A search hit carries `content_excerpt`, not `content`, so every body is empty until
+    # get_note is called for it. Scoring all 25 was 25 API round-trips per pass. The excerpt
+    # is enough to shortlist: keep anything scoring above a low bar on the excerpt, then
+    # fetch only those bodies. An excerpt can cut a long prompt short, so the bar is
+    # deliberately permissive -- it is a filter, not a decision.
+    said = set(tokenize_for_match(spoken))
+    shortlist: list[tuple[str, str]] = []
     for note in notes[:how_many]:
         note_id = str(note.get("id") or "")
-        body = (note.get("content") or "").strip()
+        body = (note.get("content") or note.get("content_excerpt") or "").strip()
         if not body and note_id:
             try:
                 body = (get_note(token, note_id).get("content") or "").strip()
             except WisprError:
                 continue
-        if body:
-            candidates.append((note_id, body))
+        if not body:
+            continue
+        if said and len(said & set(tokenize_for_match(body))) / len(said) < 0.05:
+            continue
+        shortlist.append((note_id, body))
+
+    candidates: list[tuple[str, str]] = []
+    for note_id, body in shortlist:
+        try:
+            full = (get_note(token, note_id).get("content") or "").strip()
+        except WisprError:
+            full = body
+        if full:
+            candidates.append((note_id, full))
 
     if not candidates:
         raise CaptureError("every recent Scratchpad note is empty")

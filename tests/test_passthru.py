@@ -1811,3 +1811,37 @@ def test_the_sweep_does_not_write_relative_to_the_working_directory():
     source = Path(cli.__file__).read_text()
     assert 'root / "fixtures" / "corpus.json"' in source
     assert 'append_capture(\n                    Path("fixtures/corpus.json")' not in source
+
+
+def test_a_search_hit_exposes_an_excerpt_not_the_body():
+    """Real behaviour, found while diagnosing a failed sweep.
+
+    `search_scratchpad_notes` returns `content_excerpt`, `id`, `modified_at` and `title`. It
+    does not return `content`, so every note body reads as empty until `get_note` is called
+    for it, and scoring 25 candidates meant 25 API round-trips per pass.
+    """
+    from passthru.capture import tokenize_for_match
+
+    note = {"id": "x", "title": "t", "modified_at": "2026-10-03T16:53:52Z",
+            "content_excerpt": "Refactor the payment handler into two functions"}
+    assert "content" not in note
+    assert tokenize_for_match(note["content_excerpt"])
+
+
+def test_the_preflight_reports_a_timestamp_from_two_days_ago(monkeypatch):
+    """The question that wasted a whole sweep: did my dictation land at all?
+
+    The timestamp is the useful part. A note from yesterday means the dictation went
+    somewhere else, and no amount of retrying inside this tool fixes that.
+    """
+    import passthru.capture as capture
+    import passthru.scratchpad as scratchpad
+
+    notes = [{
+        "id": "abc", "modified_at": "2026-10-03T16:53:52.831984Z",
+        "content_excerpt": "Refactor the payment handler into two functions",
+    }]
+    monkeypatch.setattr(scratchpad, "list_notes", lambda token, query="": notes)
+    summary = capture.newest_note_summary("t")
+    assert "2026-10-03" in summary
+    assert "not reaching" in summary

@@ -126,7 +126,7 @@ passthru fixtures/corpus.json --out /tmp/r.html   # anywhere you like
 The checks the project relies on are runnable too:
 
 ```bash
-pytest                                          # 139 tests
+pytest                                          # 141 tests
 node scripts/check-parity.mjs                    # page vs package: ratios, requirements,
                                                 #   inversions and three-way verdicts
 .venv/bin/python scripts/mutation.py             # 13 deliberate faults, all must be caught
@@ -154,8 +154,15 @@ inversion it finds:
 
 ```bash
 passthru sweep --dry-run     # read the prompts first
+passthru sweep --check       # preflight: is your dictation reaching Scratchpad?
 passthru sweep               # then dictate them
 ```
+
+Run `--check` after dictating once and before the full sweep. It prints the newest Scratchpad
+note and its timestamp. **If that timestamp has not changed, your dictation is not reaching
+Scratchpad** and the sweep will refuse every pass — which is the correct behaviour, but only
+after nine wasted attempts. Wispr Flow can be dictating into a different surface; check that
+you are in a Scratchpad note.
 
 This exists because the project's most serious finding currently rests on **one utterance**,
 which is the one claim a sceptical judge can legitimately attack. Nine more runs, nine of them
