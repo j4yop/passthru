@@ -139,6 +139,8 @@ body {
   font-size: 10.5px;
   letter-spacing: 0.08em;
   padding: 2px 8px;
+  white-space: nowrap;
+  line-height: 1.2;
   border-radius: 9999px;
   background: var(--accent-cyan-dim);
   color: var(--accent-cyan);
@@ -827,14 +829,14 @@ ul.lim li:last-child {
 
   <div class="hero-metrics">
     <div class="metric-card">
-      <div class="metric-label">RAW PASSTHROUGH (NONE)</div>
-      <div class="metric-value kept">15.0 pt spread</div>
-      <div class="metric-sub">9 runs · worst 85.0% · best 100.0%</div>
+      <div class="metric-label">WORST CASE, RAW PASSTHROUGH</div>
+      <div class="metric-value kept">85.0%</div>
+      <div class="metric-sub">floor over 9 runs · worst 85.0% · best 100.0%</div>
     </div>
     <div class="metric-card alert">
-      <div class="metric-label">PRODUCT DEFAULT (LIGHT)</div>
-      <div class="metric-value warn">34.9 pt spread</div>
-      <div class="metric-sub">8 runs · worst 65.1% · best 100.0%</div>
+      <div class="metric-label">WORST CASE, PRODUCT DEFAULT</div>
+      <div class="metric-value warn">65.1%</div>
+      <div class="metric-sub">floor over 8 runs · worst 65.1% · best 100.0%</div>
     </div>
     <div class="metric-card alert">
       <div class="metric-label">SILENT DAMAGE</div>

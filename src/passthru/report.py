@@ -228,6 +228,8 @@ body {
   font-size: 10.5px;
   letter-spacing: 0.08em;
   padding: 2px 8px;
+  white-space: nowrap;
+  line-height: 1.2;
   border-radius: 9999px;
   background: var(--accent-cyan-dim);
   color: var(--accent-cyan);
@@ -1157,7 +1159,19 @@ def _spread(views: list[RunView], setting: str) -> str:
     ratios = [v.ratio * 100 for v in views if v.auto_cleanup == setting]
     if not ratios:
         return "n/a"
-    return f"{max(ratios) - min(ratios):.1f} pt spread"
+    return f"{max(ratios) - min(ratios):.1f} pt"
+
+
+def _worst(views: list[RunView], setting: str) -> str:
+    """The worst run at a setting, as a percentage.
+
+    The floor is the honest headline for a setting, because that is what you get on a bad
+    day. A spread is a property of the whole dataset, and on a card it reads as a number
+    with no label -- 15.0 pt is not a survival figure, and only shows up as one if the sub
+    line happens to mention it.
+    """
+    ratios = [v.ratio * 100 for v in views if v.auto_cleanup == setting]
+    return f"{min(ratios):.1f}%" if ratios else "n/a"
 
 
 def _spread_sub(views: list[RunView], setting: str) -> str:
@@ -1537,14 +1551,14 @@ number.</p>"""
 
   <div class="hero-metrics">
     <div class="metric-card">
-      <div class="metric-label">RAW PASSTHROUGH ({LIVE_SETTINGS[0].upper()})</div>
-      <div class="metric-value kept">{_e(_spread(views, LIVE_SETTINGS[0]))}</div>
-      <div class="metric-sub">{_e(_spread_sub(views, LIVE_SETTINGS[0]))}</div>
+      <div class="metric-label">WORST CASE, RAW PASSTHROUGH</div>
+      <div class="metric-value kept">{_e(_worst(views, LIVE_SETTINGS[0]))}</div>
+      <div class="metric-sub">floor over {_spread_sub(views, LIVE_SETTINGS[0])}</div>
     </div>
     <div class="metric-card alert">
-      <div class="metric-label">PRODUCT DEFAULT ({PRODUCT_DEFAULT.upper()})</div>
-      <div class="metric-value warn">{_e(_spread(views, PRODUCT_DEFAULT))}</div>
-      <div class="metric-sub">{_e(_spread_sub(views, PRODUCT_DEFAULT))}</div>
+      <div class="metric-label">WORST CASE, PRODUCT DEFAULT</div>
+      <div class="metric-value warn">{_e(_worst(views, PRODUCT_DEFAULT))}</div>
+      <div class="metric-sub">floor over {_spread_sub(views, PRODUCT_DEFAULT)}</div>
     </div>
     <div class="metric-card alert">
       <div class="metric-label">SILENT DAMAGE</div>
