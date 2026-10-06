@@ -814,6 +814,7 @@ ul.lim li:last-child {
     <a href="#try" class="nav-link">Lab Scorer</a>
     <a href="#utterances" class="nav-link">Utterances</a>
     <a href="#checked" class="nav-link">Checks</a>
+    <a href="#taxonomy" class="nav-link">What goes wrong</a>
     <a href="#limitations" class="nav-link">Limitations</a>
     <a href="https://github.com/j4yop/passthru" target="_blank" rel="noopener noreferrer" class="nav-link ext">GitHub ↗</a>
   </nav>
@@ -835,10 +836,11 @@ ul.lim li:last-child {
       <div class="metric-value warn">34.9 pt spread</div>
       <div class="metric-sub">8 runs · worst 65.1% · best 100.0%</div>
     </div>
-    <div class="metric-card alert-high">
-      <div class="metric-label">THE SILENT FAILURE</div>
-      <div class="metric-value gone">2 INVERSIONS</div>
-      <div class="metric-sub">Nothing raised &bull; on u1 at Light and Medium, <code>no pytest</code> arrived as <code>not pytest</code></div>
+    <div class="metric-card alert">
+      <div class="metric-label">SILENT DAMAGE</div>
+      <div class="metric-value warn">5 OF 24</div>
+      <div class="metric-sub">runs where an identifier arrived as a different
+        name &mdash; at every setting, including no rewriting at all</div>
     </div>
   </div>
 </section>
@@ -2196,8 +2198,40 @@ one has caught it being wrong.</p>
     differ from the earlier version of this report.</p>
   </div>
 </div>
-<p class="note">147 tests. <code>pytest</code>,
+<p class="note">151 tests. <code>pytest</code>,
 <code>node scripts/check-parity.mjs</code>, <code>python scripts/mutation.py</code>.</p>
+
+<h2 id="taxonomy">What actually goes wrong</h2>
+<p class="note">Requirement kinds say how bad a loss is. These say what went wrong, which is
+what you can act on. Counted over all 24 runs, not asserted.</p>
+<div class="bars">
+  <table>
+    <thead><tr><th>mechanism</th><th>runs affected</th><th>of</th><th>captures</th></tr></thead>
+    <tbody>
+<tr>
+      <td>identifier corrupted</td>
+      <td class="num">5</td>
+      <td class="num">24</td>
+      <td>u3, u6, u7, u8</td>
+    </tr><tr>
+      <td>prohibition inverted</td>
+      <td class="num">2</td>
+      <td class="num">24</td>
+      <td>u1</td>
+    </tr><tr>
+      <td>rejected alternative lost</td>
+      <td class="num">2</td>
+      <td class="num">24</td>
+      <td>u6, u7</td>
+    </tr>
+</tbody>
+  </table>
+</div>
+<p class="note">The common failure is not the one that sounds worst. An identifier arriving
+as a different name happens more often than an inverted negation and it happens at every
+setting, including the one that rewrites nothing &mdash; so turning Auto Cleanup off does not
+protect you from it. An inverted prohibition is rarer and is the only failure here that
+reverses your meaning rather than breaking a name.</p>
 
 <h2 id="limitations">What this evidence cannot tell you</h2>
 <div class="warnbox">
@@ -2208,7 +2242,7 @@ one has caught it being wrong.</p>
 
 <footer class="footer-wrap">
   <div class="footer-meta">
-    <span>BUILT BY VOICE &bull; WISPR FLOW [CLEANUP: NONE] &bull; 147 TESTS, 13 MUTATIONS &bull; PAGE SCORER CHECKED AGAINST THE PACKAGE</span>
+    <span>BUILT BY VOICE &bull; WISPR FLOW [CLEANUP: NONE] &bull; 151 TESTS, 13 MUTATIONS &bull; PAGE SCORER CHECKED AGAINST THE PACKAGE</span>
   </div>
   <div class="footer-links">
     <a href="https://github.com/j4yop/passthru" target="_blank" rel="noopener noreferrer">Source Code</a>

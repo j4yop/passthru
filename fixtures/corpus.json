@@ -286,11 +286,12 @@
     "Audio is excluded from git, and none of it matches these captures anyway. The recordings predate the corpus restructure and document an earlier capture, which is not any capture here."
   ],
   "findings": [
-    "Cleanup is not reliably worse, it is wildly variable. Across nine captures raw passthrough spans 15.0 points, Light 34.9 and Medium 41.0. Medium tied raw passthrough on u5, and beat it on u4.",
-    "On u1, at both rewrite settings, 'no pytest' arrived as 'not pytest'. That is the opposite instruction, delivered without any error.",
-    "That inversion did NOT reproduce. Three further prompts dense with prohibitions -- never, do not, no -- were dictated at all three settings, eight runs, and produced zero inversions. It remains the most serious observation in this corpus and it currently rests on one utterance out of nine. A pattern that appears once in nine captures is an anecdote with a measurement attached, not a rate.",
-    "A unit abbreviation is not a loss: '240 pixels' arriving as 240px still says 240, and '8 pixels' arriving as 8px still says 8. The mirror case, '1rem' becoming 'one rem', is a real loss, because a literal became prose.",
-    "Spelled-out numbers and markdown-escaped identifiers were initially scored as losses. Both were scorer faults rather than pipeline damage, and fixing them moved every figure in this corpus.",
-    "The rewrite settings rewrite most aggressively at Light on some prompts and at None on others. u7 lost a public function name and two numeric thresholds at Light and nothing at all at Medium. Which setting is safest is not a property of the setting."
+    "The most frequent thing that goes wrong is an identifier arriving under a different name: 5 of 24 runs, across 4 captures, and at every setting including raw passthrough. Turning Auto Cleanup off does not prevent it. customer_id became customer; test_score.py became test_score_dot_py; migrate_0042.sql became db/migrate/0042.sql.",
+    "Cleanup is not reliably worse, it is wildly variable. Across nine captures raw passthrough spans 15.0 points, Light 34.9 and Medium 41.0. Raw passthrough is best on six captures and beaten on two.",
+    "A prohibition arriving inverted is the rarest failure and the only one that reverses meaning rather than breaking a name. It happened twice, both on u1, both at a rewrite setting: 'no pytest' arrived as 'not pytest'.",
+    "That inversion did NOT reproduce. Three further prompts dense with prohibitions, eight runs at all three settings, zero inversions. It is one utterance out of nine, which is an anecdote with a measurement attached, not a rate.",
+    "On u7 at Light, 'set the threshold to 0.85, not 0.5' arrived as the single token '0.85.0.5'. The rejection is no longer separable from the acceptance.",
+    "Raw passthrough is a good default, not a safe one. It lost a rejected alternative on u6 -- 'difflib, not Levenshtein' arrived as 'difflib, not libstein' -- and a filename, at the setting that rewrites nothing.",
+    "Markdown escaping of identifiers appeared in many runs and is not damage: test\\\\_score.py is test_score.py quoted, and the agent reads them identically. Scoring it as a loss was a fault in the scorer and fixing it moved every figure in this corpus."
   ]
 }

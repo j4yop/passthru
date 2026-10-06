@@ -30,20 +30,40 @@ the rejected half of `difflib, not Levenshtein`. Two rewrite settings beat it ou
 is no setting that wins every time, which is a more useful thing to know than a setting that
 wins on average.
 
-### The finding, and what happened when we tried to reproduce it
+### What actually goes wrong
 
-On utterance 1, at both rewrite settings, **`no pytest` arrived as `not pytest`.** Not
-degraded — the opposite instruction, delivered with no error anywhere. Raw passthrough
-delivered it correctly.
+Requirement kinds say how bad a loss is. These say what went wrong, which is what you can act
+on. Counted over all 24 runs on the page, not asserted here:
 
-Then we tested it. Three further prompts, deliberately dense with prohibitions — `never`, `do
-not`, `no`, `none` — were dictated at all three settings. Eight runs. **Zero inversions.**
+| mechanism | runs affected | captures |
+|---|---|---|
+| **an identifier arrived as a different name** | **5 of 24** | u3, u6, u7, u8 |
+| a rejected alternative was lost | 2 of 24 | u6, u7 |
+| a prohibition arrived inverted | 2 of 24 | u1 |
 
-That is the honest result, and it is a weaker claim than the one this project started with.
-The inversion is real, it is the most serious thing in the corpus, and it currently rests on
-**one utterance out of nine**. A pattern that appears once in nine captures is an anecdote
-with a measurement attached, not a rate. We would rather say that than quote the first
-capture and hope nobody asks how many there were.
+**The common failure is not the one that sounds worst.**
+
+An identifier arriving under a different name is the most frequent thing that goes wrong, and
+it happens at *every* setting — including the one that rewrites nothing. On u3 you asked it
+never to drop `customer_id` and it heard `customer`, so the migration writes a column nobody
+reads. On u6 `test_score.py` became `test_score_dot_py`. On u8 `migrate_0042.sql` became
+`db/migrate/0042.sql`. **Turning Auto Cleanup off does not protect you from this.** You have
+to check the names.
+
+A prohibition arriving inverted is rarer — 2 of 24 runs — and it is the only failure here that
+reverses your meaning rather than breaking a name. On u1, at both rewrite settings,
+**`no pytest` arrived as `not pytest`**, with no error anywhere. Raw passthrough delivered it
+correctly.
+
+### The inversion did not reproduce, and we are telling you
+
+Three further prompts, deliberately dense with prohibitions — `never import pytest`, `do not
+edit the down path`, `No console logging` — were dictated at all three settings. Eight runs.
+**Zero inversions.**
+
+So the inversion is real, it is the most serious thing in the corpus, and it happened **once in
+nine captures**. That is an anecdote with a measurement attached, not a rate. We would rather
+say that than quote the first capture and hope nobody counts.
 
 **Try it live → [passthru-ebon.vercel.app](https://passthru-ebon.vercel.app)** · source: [`reports/index.html`](reports/index.html)
 
@@ -155,7 +175,7 @@ byte-identical to a fresh render. It should end in `all checks passed`.
 Individually:
 
 ```bash
-pytest                                          # 147 tests
+pytest                                          # 151 tests
 node scripts/check-parity.mjs                    # page vs package: ratios, requirements,
                                                 #   inversions and three-way verdicts
 python3 scripts/mutation.py                      # 13 deliberate faults, all must be caught

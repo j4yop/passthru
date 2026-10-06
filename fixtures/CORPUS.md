@@ -67,6 +67,29 @@ Two things the sweep did produce:
   so the advice rule finally has a sibling to point at. It recommends `None` on `u7` and `u8`
   and `Light` on `u6`, each naming a requirement that one setting lost and another kept.
 
+## What actually goes wrong, counted
+
+| mechanism | runs | captures |
+|---|---|---|
+| an identifier arrived as a different name | 5 of 24 | u3, u6, u7, u8 |
+| a rejected alternative was lost | 2 of 24 | u6, u7 |
+| a prohibition arrived inverted | 2 of 24 | u1 |
+
+Identifier corruption is the most frequent mechanism and it reaches every setting, including
+raw passthrough. The three cases:
+
+- `u3` (None and Light): `customer_id` arrived as `customer`. A migration that drops a
+  column nobody reads.
+- `u6` (None): `test_score.py` arrived as `test_score_dot_py`. The recogniser spelled out
+  the dot.
+- `u8` (Light): `migrate_0042.sql` arrived as `db/migrate/0042.sql`. An underscore became a
+  slash, which is a path, not a filename.
+
+`u7` (Light) is the fourth kind of damage and the strangest in the corpus: the prompt said
+"set the threshold to 0.85, not 0.5" and it arrived as the single token `0.85.0.5`. The
+rejection is no longer separable from the acceptance, so no reader of that line — human or
+agent — can tell which number was rejected.
+
 ## An inversion, not a loss
 
 The prohibition in that utterance, `no pytest`, was invisible to the requirement extractor for

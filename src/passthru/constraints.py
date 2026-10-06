@@ -384,3 +384,69 @@ def apply_inversions(
                 continue
         out.append(req)
     return out
+
+
+_IDENTIFIER = re.compile(r"[\w-]+\.(?:py|sql)\b|\b[a-z]+_[a-z_]+\b")
+_STEM = re.compile(r"[\w./\\-]+")
+
+
+def identifier_taxonomy(spoken: str, received: str) -> list[str]:
+    """Names the speaker asked for that arrived as a different name.
+
+    Markdown escaping does not count. `test\\_score.py` is the filename `test_score.py`
+    with an escaping backslash, the agent reads them identically, and the scorer already
+    undoes it. What counts here is the identifier arriving as *another* identifier, so the
+    agent is pointed at a file, column or function that does not exist.
+
+    Matched by stem, so `customer_id` arriving as only `customer` counts. A partial arrival
+    is still a name that does not exist.
+    """
+    asked = {
+        name for name in _IDENTIFIER.findall(spoken or "")
+        if "_" in name or "." in name
+    }
+    arrived = received or ""
+    lost: list[str] = []
+    for name in sorted(asked):
+        if name in arrived:
+            continue
+        if re.search(re.escape(name).replace("_", r"\\_"), arrived):
+            continue  # escaped: quoting, not damage
+        # Whether a same-stem variant arrived does not change the verdict: either the name
+        # is absent or it is present under a different spelling, and both leave the agent
+        # pointed at something that does not exist. The stem is only kept for diagnostics.
+        stem = name.split(".")[0].replace("_", "")[:6].lower()
+        arrived_as = [
+            word for word in _STEM.findall(arrived)
+            if stem and stem in word.lower()
+        ]
+        lost.append(f"{name} -> {arrived_as[0]}" if arrived_as else name)
+    return lost
+
+
+def failure_taxonomy(spoken: str, received: str) -> dict[str, list[str]]:
+    """Classify what a single pass lost, by mechanism rather than by requirement kind.
+
+    Requirement kinds say how bad a loss is. This says what went wrong, which is what a
+    person can act on: an inverted negation needs reading the prompt back, a corrupted
+    identifier needs checking the names, and a rewritten numeral needs nothing.
+
+    Every count in the report's summary comes from here, so none of them can drift from the
+    data the way a hand-written figure did.
+    """
+    inversions = [f"{i.said} -> {i.arrived}" for i in detect_inversions(spoken, received)]
+    identifiers = identifier_taxonomy(spoken, received)
+
+    rejections: list[str] = []
+    for requirement in extract(spoken):
+        if requirement.kind != "choice":
+            continue
+        marked = mark_lost([requirement], received)
+        if marked and not marked[0].survived:
+            rejections.append(requirement.value)
+
+    return {
+        "prohibition inverted": inversions,
+        "identifier corrupted": identifiers,
+        "rejected alternative lost": rejections,
+    }

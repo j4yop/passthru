@@ -25,12 +25,14 @@ from pathlib import Path
 from typing import Any
 
 from .align import Pair, aggregate, align_utterances
-from .constraints import Requirement, detect_inversions, extract, lost, mark_lost
+from .constraints import (
+    Requirement, detect_inversions, extract, failure_taxonomy, lost, mark_lost,
+)
 from .score import score_stage
 
 _MODULE_DIR = Path(__file__).resolve().parent
 
-CLAIMED_TESTS = 147
+CLAIMED_TESTS = 151
 """The number of tests this project claims on its report.
 
 Hardcoded, and therefore able to drift, which it did: the page said 58 for several commits
@@ -916,6 +918,15 @@ class RunView:
     spoken_text: str = ""
     """The ground truth for this capture, needed to score it outside a paired view."""
 
+    received_text: str = ""
+    """Exactly what Wispr delivered for this run.
+
+    Distinct from `pairs_text()`, which is the aligner's reconstruction of it. They differ:
+    text that matched no spoken token can belong to no pair, so a mechanism scan over the
+    reconstruction under-counted -- it reported one prohibition inversion where the data has
+    two, and four corrupted identifiers where there are five. Anything diagnosing the
+    delivered text has to read the delivered text."""
+
     def _replace_lost(self, requirements: list) -> "RunView":
         """A copy carrying a filtered loss list, for advice that ignores some kinds."""
         clone = RunView(
@@ -923,6 +934,7 @@ class RunView:
             ratio=self.ratio, spoken=self.spoken, pairs=self.pairs,
             lost_requirements=list(requirements), is_default=self.is_default,
             capture=self.capture, spoken_text=self.spoken_text,
+            received_text=self.received_text,
         )
         return clone
 
@@ -957,6 +969,7 @@ def _score_one(
         is_default=run.get("auto_cleanup", "").lower() == PRODUCT_DEFAULT.lower(),
         capture=capture,
         spoken_text=spoken,
+        received_text=received,
     )
 
 
@@ -1385,12 +1398,38 @@ def render(views: list[RunView], limitations: list[str] | None = None,
     # falsifiable, and this one was falsifiable only by deleting it.
     inversions: list[tuple[str, str, str, str]] = []
     for view in views:
-        for inversion in detect_inversions(view.spoken_text or spoken, view.pairs_text()):
+        for inversion in detect_inversions(
+            view.spoken_text or spoken, view.received_text or view.pairs_text()
+        ):
             inversions.append(
                 (view.capture, view.auto_cleanup, inversion.said, inversion.arrived)
             )
     inversion_count = len(inversions)
     plural = "" if inversion_count == 1 else "S"
+
+    # Mechanisms, counted over every run. Computed rather than written down, because a
+    # hand-written figure on this page has already been wrong twice.
+    mechanism_runs: dict[str, set[str]] = {}
+    for view in views:
+        for mechanism, items in failure_taxonomy(
+            view.spoken_text or spoken, view.received_text or view.pairs_text()
+        ).items():
+            if items:
+                # Keyed on capture *and* setting. run_id repeats across settings within a
+                # capture, so keying on it counted u3's two corrupted runs as one and the
+                # page under-reported the count the data supports.
+                mechanism_runs.setdefault(mechanism, set()).add(
+                    f"{view.capture}:{view.auto_cleanup}"
+                )
+    mechanism_rows = "".join(
+        f"""<tr>
+      <td>{_e(name)}</td>
+      <td class="num">{len(seen)}</td>
+      <td class="num">{len(views)}</td>
+      <td>{_e(', '.join(sorted({r.split(':')[0] for r in seen})))}</td>
+    </tr>"""
+        for name, seen in sorted(mechanism_runs.items(), key=lambda kv: -len(kv[1]))
+    )
     if not inversions:
         inversion_summary = "No prohibition was inverted in these captures"
     else:
@@ -1485,6 +1524,7 @@ number.</p>"""
     <a href="#try" class="nav-link">Lab Scorer</a>
     <a href="#utterances" class="nav-link">Utterances</a>
     <a href="#checked" class="nav-link">Checks</a>
+    <a href="#taxonomy" class="nav-link">What goes wrong</a>
     <a href="#limitations" class="nav-link">Limitations</a>
     <a href="https://github.com/j4yop/passthru" target="_blank" rel="noopener noreferrer" class="nav-link ext">GitHub ↗</a>
   </nav>
@@ -1506,10 +1546,11 @@ number.</p>"""
       <div class="metric-value warn">{_e(_spread(views, PRODUCT_DEFAULT))}</div>
       <div class="metric-sub">{_e(_spread_sub(views, PRODUCT_DEFAULT))}</div>
     </div>
-    <div class="metric-card alert-high">
-      <div class="metric-label">THE SILENT FAILURE</div>
-      <div class="metric-value gone">{inversion_count} INVERSION{plural}</div>
-      <div class="metric-sub">{inversion_summary}</div>
+    <div class="metric-card alert">
+      <div class="metric-label">SILENT DAMAGE</div>
+      <div class="metric-value warn">{len(mechanism_runs.get("identifier corrupted", ()))} OF {len(views)}</div>
+      <div class="metric-sub">runs where an identifier arrived as a different
+        name &mdash; at every setting, including no rewriting at all</div>
     </div>
   </div>
 </section>
@@ -1529,6 +1570,23 @@ default setting is expanded.</p>
 {chr(10).join(sections)}
 
 {_verification_section()}
+
+<h2 id="taxonomy">What actually goes wrong</h2>
+<p class="note">Requirement kinds say how bad a loss is. These say what went wrong, which is
+what you can act on. Counted over all {len(views)} runs, not asserted.</p>
+<div class="bars">
+  <table>
+    <thead><tr><th>mechanism</th><th>runs affected</th><th>of</th><th>captures</th></tr></thead>
+    <tbody>
+{mechanism_rows}
+</tbody>
+  </table>
+</div>
+<p class="note">The common failure is not the one that sounds worst. An identifier arriving
+as a different name happens more often than an inverted negation and it happens at every
+setting, including the one that rewrites nothing &mdash; so turning Auto Cleanup off does not
+protect you from it. An inverted prohibition is rarer and is the only failure here that
+reverses your meaning rather than breaking a name.</p>
 
 <h2 id="limitations">What this evidence cannot tell you</h2>
 <div class="warnbox">

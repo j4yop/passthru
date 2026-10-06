@@ -1954,3 +1954,77 @@ def test_an_overlap_gate_that_rejects_everything_is_a_different_failure():
     prompt = "keep the file name as score.py"
     same = [prompt, prompt.upper(), prompt + " please"]
     assert max(discriminating_overlap(prompt, same)) < 0.5
+
+
+# --- What actually goes wrong ----------------------------------------------------
+#
+# The inversion is the most serious observation and it happens once in nine captures. The
+# damage that happens more often is quieter, so it needed counting rather than anecdote.
+
+
+def test_the_inversion_is_the_rare_failure_not_the_common_one(views):
+    """This is the reframing the sweep forced, pinned so it cannot quietly revert.
+
+    One inversion in nine captures is an anecdote with a measurement attached. Identifier
+    corruption happens in five of twenty-four runs and at every setting including raw
+    passthrough, so it is the finding that rests on the data, and it is the one a person can
+    act on without rereading every prompt.
+    """
+    from passthru.constraints import failure_taxonomy
+
+    counts: dict[str, set] = {}
+    for view in views:
+        for mechanism, items in failure_taxonomy(view.spoken_text, view.received_text).items():
+            if items:
+                counts.setdefault(mechanism, set()).add(f"{view.capture}:{view.auto_cleanup}")
+
+    assert len(counts["identifier corrupted"]) == 5, counts["identifier corrupted"]
+    assert len(counts["prohibition inverted"]) == 2, counts["prohibition inverted"]
+    assert len(counts["identifier corrupted"]) > len(counts["prohibition inverted"])
+
+    # And the identifier damage is not confined to the rewrite settings.
+    settings = {key.split(":")[1] for key in counts["identifier corrupted"]}
+    assert "None" in settings, "identifier corruption must be shown to reach raw passthrough"
+
+
+def test_identifier_corruption_reports_what_arrived_instead(views):
+    """A partial arrival is still a name that does not exist.
+
+    `customer_id` arriving as `customer` is the case that matters: the column exists under
+    the other name, so the agent's migration writes a column nobody reads.
+    """
+    from passthru.constraints import identifier_taxonomy
+
+    spoken = "Add an index on the orders table, and never drop the customer_id column."
+    got = "Add an index on the orders table and never drop the customer column because the monthly report depends on it."
+    assert identifier_taxonomy(spoken, got) == ["customer_id -> customer"]
+
+
+def test_markdown_escaping_is_not_identifier_corruption(views):
+    """`test\\_score.py` is `test_score.py`. Counting quoting as damage was the first version
+    of this scanner and it reported sixteen runs corrupted when the answer is five."""
+    from passthru.constraints import identifier_taxonomy
+
+    spoken = "Add a test file called test_score.py that pins the tokenizer."
+    assert identifier_taxonomy(spoken, spoken) == []
+    assert identifier_taxonomy(spoken, "Add a test file called test\\_score.py.") == []
+    assert identifier_taxonomy(spoken, "Add a test file called test_score_dot_py.") == [
+        "test_score.py"
+    ]
+
+
+def test_the_report_counts_runs_not_run_ids(views):
+    """Two corrupted runs inside one capture used to be counted as one.
+
+    run_id repeats across settings within a capture, so keying the tally on it under-reported
+    the count the data supports -- four where there are five.
+    """
+    from passthru.constraints import failure_taxonomy
+
+    affected = {
+        f"{v.capture}:{v.auto_cleanup}"
+        for v in views
+        if failure_taxonomy(v.spoken_text, v.received_text)["identifier corrupted"]
+    }
+    assert len(affected) == 5
+    assert len({key.split(":")[0] for key in affected}) == 4
