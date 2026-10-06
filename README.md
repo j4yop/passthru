@@ -6,15 +6,14 @@ downward.**
 Passthru measures how much of what you *said* survives the trip into your coding agent,
 which requirements died on the way, and whether the setting you chose can predict it.
 
-Six captures of dictated technical instructions, passed through Wispr Flow at each cleanup
-setting. 16 runs, one speaker, one session. Two captures are missing one setting each,
-so n differs by row:
+Nine captures of dictated technical instructions, passed through Wispr Flow at each cleanup
+setting. 24 runs, one speaker, one session. Coverage is uneven, so n differs by row:
 
 | Auto Cleanup | runs | worst | median | best | spread |
 |---|---|---|---|---|---|
-| **None** | 6 | 95.2% | 97.6% | 100.0% | **4.8 points** |
-| **Light** (product default) | 5 | 65.1% | 97.6% | 100.0% | **34.9 points** |
-| **Medium** | 5 | 59.0% | 92.7% | 100.0% | **41.0 points** |
+| **None** | 9 | 85.0% | 97.6% | 100.0% | **15.0 points** |
+| **Light** (product default) | 8 | 65.1% | 97.6% | 100.0% | **34.9 points** |
+| **Medium** | 7 | 59.0% | 92.7% | 100.0% | **41.0 points** |
 
 More than one utterance turned a clean result into a messier and more useful one. On the first
 utterance, cleanup looked catastrophic and raw passthrough looked perfect. Across five:
@@ -23,12 +22,28 @@ utterance, cleanup looked catastrophic and raw passthrough looked perfect. Acros
 which run will be the bad one.** On utterance 4 both rewrite settings scored a clean 100%
 while raw passthrough scored 97.6%, and on utterance 5 all three tied. The same settings took
 utterance 1 from 95.2% to 59.0%. There is no threshold you can reason your way to, only a
-distribution, and only one of the three settings has a floor.
+distribution.
 
-The most serious observation is not a missing token. On utterance 1, at both rewrite
-settings, **`no pytest` arrived as `not pytest`.** That is not degradation. It is the
-opposite instruction, and the agent receives it without any indication that anything went
-wrong. Raw passthrough delivered it correctly, twice out of two attempts.
+**And raw passthrough is a good default, not a safe one.** It has the tightest spread by two
+to three times, and it still lost a requirement on 2 of its 9 runs — once a filename, once
+the rejected half of `difflib, not Levenshtein`. Two rewrite settings beat it outright. There
+is no setting that wins every time, which is a more useful thing to know than a setting that
+wins on average.
+
+### The finding, and what happened when we tried to reproduce it
+
+On utterance 1, at both rewrite settings, **`no pytest` arrived as `not pytest`.** Not
+degraded — the opposite instruction, delivered with no error anywhere. Raw passthrough
+delivered it correctly.
+
+Then we tested it. Three further prompts, deliberately dense with prohibitions — `never`, `do
+not`, `no`, `none` — were dictated at all three settings. Eight runs. **Zero inversions.**
+
+That is the honest result, and it is a weaker claim than the one this project started with.
+The inversion is real, it is the most serious thing in the corpus, and it currently rests on
+**one utterance out of nine**. A pattern that appears once in nine captures is an anecdote
+with a measurement attached, not a rate. We would rather say that than quote the first
+capture and hope nobody asks how many there were.
 
 **Try it live → [passthru-ebon.vercel.app](https://passthru-ebon.vercel.app)** · source: [`reports/index.html`](reports/index.html)
 
@@ -140,7 +155,7 @@ byte-identical to a fresh render. It should end in `all checks passed`.
 Individually:
 
 ```bash
-pytest                                          # 144 tests
+pytest                                          # 147 tests
 node scripts/check-parity.mjs                    # page vs package: ratios, requirements,
                                                 #   inversions and three-way verdicts
 python3 scripts/mutation.py                      # 13 deliberate faults, all must be caught
@@ -247,6 +262,11 @@ script.
   scored as surviving.
 - **The utterances are technical instructions the author wrote and read aloud.** Not a random
   sample of development speech.
+- **Which setting each sweep run came from is inferred from capture order, not read.** The
+  API does not record which Auto Cleanup level was active. `u8` has no Medium run, so its n
+  is two.
+- **The inversion did not reproduce.** Eight further runs, three prompts dense with
+  prohibitions, zero inversions. The finding rests on one capture in nine.
 - **Reading pace was not held constant across passes.** The most likely confound,
   uncontrolled.
 - **It cannot see inside Wispr Flow.** It compares two observable surfaces. What Flow did

@@ -119,7 +119,16 @@ function cleanToken(raw) {
     }
     token += raw[i];
   }
-  return token.replace(/^`+/, '').replace(/`+$/, '').replace(TRAILING, '');
+  // Alternated until stable, because the two rules interleave. A code span closed at the
+  // end of a sentence is `levenshtein`. -- backtick, then full stop -- so stripping
+  // backticks first leaves the full stop last and the backtick ends up inside the token,
+  // which makes an identifier that arrived intact score as lost.
+  let previous;
+  do {
+    previous = token;
+    token = token.replace(/^`+/, '').replace(/`+$/, '').replace(TRAILING, '');
+  } while (token !== previous);
+  return token;
 }
 
 function tokenize(text) {

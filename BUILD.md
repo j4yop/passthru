@@ -248,13 +248,41 @@ That last one is the one worth remembering. The README had described the inversi
 project's central finding for days while the requirement report quietly omitted it. A claim in
 prose is not a claim in code, and only the code gets tested.
 
-## What is still weak, said plainly
+## The sweep ran. The finding did not reproduce.
 
-The inversion — `no pytest` arriving as `not pytest` — rests on **one utterance**. That is
-the load-bearing claim and it is the one a sceptical judge can legitimately attack, and no
-amount of tooling fixes it. `passthru sweep` exists for that reason and nothing else: three
-prepared prompts, nine runs, every one containing a prohibition. Either the pattern
-reproduces or it does not, and both outcomes are worth more than the current ambiguity.
+Three prompts dense with prohibitions, eight runs across all three settings. **Zero
+inversions.** The inversion on `u1` is real and is still the most serious thing in the
+corpus, and it happened once in nine captures. That is an anecdote with a measurement attached,
+not a rate, and the README now says so in the first screen rather than leading with the single
+capture and hoping nobody counts.
+
+Two things the sweep did produce, and both cut against the tidier story:
+
+- **Raw passthrough lost a rejected alternative.** On `u6`, `difflib, not Levenshtein`
+  arrived with the rejection gone at *every* setting. The setting that rewrites nothing
+  dropped half an instruction, which is why the README now calls it a good default rather
+  than a safe one.
+- **Two rewrite settings beat raw passthrough outright**, on `u4` and `u6`. There is no
+  setting that wins every time.
+
+And advice fires for the first time, because these are the first captures with three passes
+of the same utterance. It had nothing to say before: the rule needs a sibling at a different
+setting to have any evidence, and only four captures had one.
+
+The sweep also produced three defects that only running it could find, which is now the
+pattern of this project:
+
+- `list_notes` read one page of 25 notes and ignored `has_more`. The endpoint answers with
+  `count: 25, has_more: true` and a cursor. The tool had been working with 71% of the
+  Scratchpad and saying nothing, so it matched stale notes and recorded the same text for all
+  three settings. Six of the nine runs it "captured" were one old note read three times. It
+  paginates now.
+- The overlap gate counted every shared token, so a longer wrong note scored higher. Two of
+  the three prompts scored above the floor against notes they were never dictated into, one at
+  49% against a note about a sidebar. It now counts only tokens rare among the candidates.
+- A code span closed at the end of a sentence is ``` `levenshtein`. ``` — backtick, then full
+  stop — and the strip order left the backtick inside the token, reporting an identifier that
+  arrived intact as lost. Same family as the escaped-filename bug, one level deeper.
 
 Two faults found by a later audit are worth recording here rather than only in the commit
 log, because of what they say about the state of the project before them:

@@ -1,6 +1,7 @@
 # Evidence corpus
 
-Six captures, sixteen runs, 2026-10-02 and 2026-10-03. Same speaker, same machine, same
+Nine captures, twenty-four runs. Six captured 2026-10-02 and 2026-10-03; `u6`, `u7` and `u8`
+came from a sweep on 2026-10-06. Same speaker, same machine, same
 microphone (macOS built-in), one session per day. Only Wispr Flow's **Auto Cleanup** level
 changed between runs of a given utterance.
 
@@ -19,14 +20,17 @@ which is why the run counts per setting are uneven.
 | `u3d` | 41 | 100.0% | — | 92.7% | **on** |
 | `u4` | 41 | 97.6% | 100.0% | 100.0% | off |
 | `u5` | 45 | 100.0% | 100.0% | 100.0% | off |
+| `u6` | 40 | 85.0% | 87.5% | 87.5% | off |
+| `u7` | 37 | 97.3% | 86.5% | 97.3% | off |
+| `u8` | 44 | 100.0% | 97.7% | — | off |
 
 ## The headline: spread, not averages
 
 | Auto Cleanup | runs | worst | median | best | spread |
 |---|---|---|---|---|---|
-| None | 6 | 95.2% | 97.6% | 100.0% | **4.8** |
-| Light (product default) | 5 | 65.1% | 97.6% | 100.0% | **34.9** |
-| Medium | 5 | 59.0% | 92.7% | 100.0% | **41.0** |
+| None | 9 | 85.0% | 97.6% | 100.0% | **15.0** |
+| Light (product default) | 8 | 65.1% | 97.6% | 100.0% | **34.9** |
+| Medium | 7 | 59.0% | 92.7% | 100.0% | **41.0** |
 
 Averages hide the result. Light and Medium have medians close to None's, which makes a mean
 look like "cleanup costs a little". It does not. Each of them also produced a run that lost
@@ -35,6 +39,33 @@ None never fell below 90%.
 
 On `u4` both rewrite settings beat None (100.0% against 97.6%), and on `u5` all three tied at 100.0%. That is reported rather than dropped,
 because it is what makes "cleanup is bad for you" unsupportable as a general claim.
+
+## The sweep: three more prompts, and no second inversion
+
+`u6`, `u7` and `u8` were written after this project concluded that its central finding rested
+on a single utterance. Each is dense with prohibitions — `never import pytest`, `do not edit
+the down path`, `No console logging`, `Do not use tabs` — alongside a filename, a numeral
+with a unit, a keep instruction and a rejected alternative. Eight runs across three settings.
+
+**No prohibition inverted. Not once.**
+
+That is the result, and it changes what this project can claim. The inversion on `u1` is real
+and remains the most serious observation in the corpus, but it occurred once in nine captures.
+The honest statement is that raw passthrough is the best default, that the rewrite settings
+are genuinely unpredictable, and that we have one observation of a negation arriving inverted
+and cannot yet say how often it happens.
+
+Two things the sweep did produce:
+
+- **Raw passthrough lost a rejected alternative.** On `u6`, `difflib, not Levenshtein`
+  arrived with the rejection gone at *every* setting, including None. The setting that
+  rewrites nothing dropped half an instruction.
+- **Which setting is safest depends on the prompt.** Raw passthrough is best on six captures,
+  and it is beaten on `u4` (97.6 against 100.0) and on `u6` (85.0 against 87.5). There is no
+  setting that wins every time.
+- **Advice now fires.** These are the first captures with three passes of the same utterance,
+  so the advice rule finally has a sibling to point at. It recommends `None` on `u7` and `u8`
+  and `Light` on `u6`, each naming a requirement that one setting lost and another kept.
 
 ## An inversion, not a loss
 

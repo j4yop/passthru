@@ -827,13 +827,13 @@ ul.lim li:last-child {
   <div class="hero-metrics">
     <div class="metric-card">
       <div class="metric-label">RAW PASSTHROUGH (NONE)</div>
-      <div class="metric-value kept">4.8 pt spread</div>
-      <div class="metric-sub">6 runs · worst 95.2% · best 100.0%</div>
+      <div class="metric-value kept">15.0 pt spread</div>
+      <div class="metric-sub">9 runs · worst 85.0% · best 100.0%</div>
     </div>
     <div class="metric-card alert">
       <div class="metric-label">PRODUCT DEFAULT (LIGHT)</div>
       <div class="metric-value warn">34.9 pt spread</div>
-      <div class="metric-sub">5 runs · worst 65.1% · best 100.0%</div>
+      <div class="metric-sub">8 runs · worst 65.1% · best 100.0%</div>
     </div>
     <div class="metric-card alert-high">
       <div class="metric-label">THE SILENT FAILURE</div>
@@ -957,6 +957,62 @@ ul.lim li:last-child {
         </div>
         <div class="track"><span class="fill " style="width:100.0%"></span></div>
       </div>
+      <div class="bar">
+        <div class="top">
+          <span class="name">Auto Cleanup None</span>
+          <span class="pct">85.0%</span>
+        </div>
+        <div class="track"><span class="fill warn" style="width:85.0%"></span></div>
+      </div>
+      <div class="bar">
+        <div class="top">
+          <span class="name">Auto Cleanup Light <small>product default</small></span>
+          <span class="pct">87.5%</span>
+        </div>
+        <div class="track"><span class="fill warn" style="width:87.5%"></span></div>
+      </div>
+      <div class="bar">
+        <div class="top">
+          <span class="name">Auto Cleanup Medium</span>
+          <span class="pct">87.5%</span>
+        </div>
+        <div class="track"><span class="fill warn" style="width:87.5%"></span></div>
+      </div>
+      <div class="bar">
+        <div class="top">
+          <span class="name">Auto Cleanup None</span>
+          <span class="pct">97.3%</span>
+        </div>
+        <div class="track"><span class="fill " style="width:97.3%"></span></div>
+      </div>
+      <div class="bar">
+        <div class="top">
+          <span class="name">Auto Cleanup Light <small>product default</small></span>
+          <span class="pct">86.5%</span>
+        </div>
+        <div class="track"><span class="fill warn" style="width:86.5%"></span></div>
+      </div>
+      <div class="bar">
+        <div class="top">
+          <span class="name">Auto Cleanup Medium</span>
+          <span class="pct">97.3%</span>
+        </div>
+        <div class="track"><span class="fill " style="width:97.3%"></span></div>
+      </div>
+      <div class="bar">
+        <div class="top">
+          <span class="name">Auto Cleanup None</span>
+          <span class="pct">100.0%</span>
+        </div>
+        <div class="track"><span class="fill " style="width:100.0%"></span></div>
+      </div>
+      <div class="bar">
+        <div class="top">
+          <span class="name">Auto Cleanup Light <small>product default</small></span>
+          <span class="pct">97.7%</span>
+        </div>
+        <div class="track"><span class="fill " style="width:97.7%"></span></div>
+      </div>
 </div>
     <div class="headline-box">
       <p class="note">At the setting Wispr Flow ships as the default, the requirements
@@ -965,7 +1021,7 @@ ul.lim li:last-child {
     </div>
 
 <h2 id="distribution">Across every utterance</h2>
-<p class="note">6 utterances, captured at 5 at Medium, 5 at Light, 6 at None &mdash; not every utterance reached every setting, so n differs by row and the rows are not directly comparable. This is a distribution, not a single demonstration.</p>
+<p class="note">9 utterances, captured at 7 at Medium, 8 at Light, 9 at None &mdash; not every utterance reached every setting, so n differs by row and the rows are not directly comparable. This is a distribution, not a single demonstration.</p>
 <div class="bars">
   <table>
     <thead><tr><th>Auto Cleanup</th><th>n</th><th>min</th><th>median</th><th>max</th>
@@ -973,27 +1029,27 @@ ul.lim li:last-child {
     <tbody>
       <tr>
         <td>Medium</td>
-        <td class="num">5</td>
+        <td class="num">7</td>
         <td class="num">59.0%</td>
         <td class="num">92.7%</td>
         <td class="num">100.0%</td>
-        <td>3.10 in 2/5</td>
+        <td>3.10 in 2/7</td>
       </tr>
       <tr>
         <td>Light <small>product default</small></td>
-        <td class="num">5</td>
+        <td class="num">8</td>
         <td class="num">65.1%</td>
-        <td class="num">97.6%</td>
+        <td class="num">92.5%</td>
         <td class="num">100.0%</td>
-        <td>3.10 in 2/5</td>
+        <td>0.5 in 2/8, 0.85 in 2/8, 3.10 in 2/8</td>
       </tr>
       <tr>
         <td>None</td>
-        <td class="num">6</td>
-        <td class="num">95.2%</td>
+        <td class="num">9</td>
+        <td class="num">85.0%</td>
         <td class="num">97.6%</td>
         <td class="num">100.0%</td>
-        <td>nothing lost</td>
+        <td>levenshtein in 1/9, test_score.py in 1/9</td>
       </tr>
     </tbody>
   </table>
@@ -1731,6 +1787,387 @@ default setting is expanded.</p>
       </ul>
     </div>
   </details>
+  <details>
+    <summary>Auto Cleanup None &mdash; 85.0% of
+    tokens survived</summary>
+    <div class="bd">
+      <table>
+        <thead><tr><th>#</th><th>Said</th><th>Arrived</th><th>Lost</th><th></th></tr></thead>
+        <tbody>
+      <tr>
+        <td class="num">0</td>
+        <td class="said">Add a test file called test_score.py that pins the tokenizer, keep it under 200 lines, and never import pytest.</td>
+        <td class="got">Add a test file called test\_score\_dot\_py that tests the tokenizer. Keep it under 200 lines and never import pytest</td>
+        <td><span class="tok gone">test_score.py</span> <span class="tok gone">pins</span></td>
+        <td class="num">89%</td>
+      </tr>
+      <tr>
+        <td class="num">1</td>
+        <td class="said">Use difflib, not Levenshtein.</td>
+        <td class="got">Use difflib, not libstein</td>
+        <td><span class="tok gone">levenshtein</span></td>
+        <td class="num">75%</td>
+      </tr>
+      <tr>
+        <td class="num">2</td>
+        <td class="said">Make the gap between items one rem and the border radius eight pixels.</td>
+        <td class="got">Make the gap between items 1rem and the order radius 8 pixels</td>
+        <td><span class="tok gone">1</span> <span class="tok gone">rem</span> <span class="tok gone">border</span></td>
+        <td class="num">77%</td>
+      </tr>
+      <tr>
+        <td class="num">3</td>
+        <td class="said">Do not use tabs.</td>
+        <td class="got">Do not use tabs.</td>
+        <td><span style="color:var(--kept)">nothing lost</span></td>
+        <td class="num">100%</td>
+      </tr>
+        </tbody>
+      </table>
+
+      <h3>Requirements lost, most severe first</h3>
+      <ul style="padding-left:0;list-style:none;margin:10px 0 0">
+      <li><span class="sev">3</span>
+        <strong>choice</strong>
+        &mdash; <code>levenshtein</code>
+        <div class="note">use difflib not levenshtein</div></li>
+      <li><span class="sev">2</span>
+        <strong>filename</strong>
+        &mdash; <code>test_score.py</code>
+        <div class="note">test_score.py</div></li>
+      </ul>
+    </div>
+  </details>
+  <details open>
+    <summary>Auto Cleanup Light &mdash; 87.5% of
+    tokens survived, product default</summary>
+    <div class="bd">
+      <table>
+        <thead><tr><th>#</th><th>Said</th><th>Arrived</th><th>Lost</th><th></th></tr></thead>
+        <tbody>
+      <tr>
+        <td class="num">0</td>
+        <td class="said">Add a test file called test_score.py that pins the tokenizer, keep it under 200 lines, and never import pytest.</td>
+        <td class="got">Add a test file called test\_score.py that tests the tokenizer. - Keep it under 200 lines and never import pytest</td>
+        <td><span class="tok gone">pins</span></td>
+        <td class="num">95%</td>
+      </tr>
+      <tr>
+        <td class="num">1</td>
+        <td class="said">Use difflib, not Levenshtein.</td>
+        <td class="got">Use difflib not levenshtein</td>
+        <td><span style="color:var(--kept)">nothing lost</span></td>
+        <td class="num">100%</td>
+      </tr>
+      <tr>
+        <td class="num">2</td>
+        <td class="said">Make the gap between items one rem and the border radius eight pixels.</td>
+        <td class="got">Make the gap between items 1rem and the border radius 8px</td>
+        <td><span class="tok gone">1</span> <span class="tok gone">rem</span> <span class="tok gone">8</span> <span class="tok gone">pixels</span></td>
+        <td class="num">69%</td>
+      </tr>
+      <tr>
+        <td class="num">3</td>
+        <td class="said">Do not use tabs.</td>
+        <td class="got">Do not use tabs.</td>
+        <td><span style="color:var(--kept)">nothing lost</span></td>
+        <td class="num">100%</td>
+      </tr>
+        </tbody>
+      </table>
+
+      <h3>Requirements lost, most severe first</h3>
+      <ul style="padding-left:0;list-style:none;margin:10px 0 0">
+<p class="note">No requirements lost at this setting.</p>
+      </ul>
+    </div>
+  </details>
+  <details>
+    <summary>Auto Cleanup Medium &mdash; 87.5% of
+    tokens survived</summary>
+    <div class="bd">
+      <table>
+        <thead><tr><th>#</th><th>Said</th><th>Arrived</th><th>Lost</th><th></th></tr></thead>
+        <tbody>
+      <tr>
+        <td class="num">0</td>
+        <td class="said">Add a test file called test_score.py that pins the tokenizer, keep it under 200 lines, and never import pytest.</td>
+        <td class="got">Add a test file called test\_score.py that tests the tokenizer. - Keep it under 200 lines and never import pytest</td>
+        <td><span class="tok gone">pins</span></td>
+        <td class="num">95%</td>
+      </tr>
+      <tr>
+        <td class="num">1</td>
+        <td class="said">Use difflib, not Levenshtein.</td>
+        <td class="got">Use \`difflib\`, not \`levenshtein</td>
+        <td><span style="color:var(--kept)">nothing lost</span></td>
+        <td class="num">100%</td>
+      </tr>
+      <tr>
+        <td class="num">2</td>
+        <td class="said">Make the gap between items one rem and the border radius eight pixels.</td>
+        <td class="got">Make the gap between items on the rim at the border radius 8 px</td>
+        <td><span class="tok gone">1</span> <span class="tok gone">rem</span> <span class="tok gone">and</span> <span class="tok gone">pixels</span></td>
+        <td class="num">69%</td>
+      </tr>
+      <tr>
+        <td class="num">3</td>
+        <td class="said">Do not use tabs.</td>
+        <td class="got">Do not use tabs.</td>
+        <td><span style="color:var(--kept)">nothing lost</span></td>
+        <td class="num">100%</td>
+      </tr>
+        </tbody>
+      </table>
+
+      <h3>Requirements lost, most severe first</h3>
+      <ul style="padding-left:0;list-style:none;margin:10px 0 0">
+<p class="note">No requirements lost at this setting.</p>
+      </ul>
+    </div>
+  </details>
+  <details>
+    <summary>Auto Cleanup None &mdash; 97.3% of
+    tokens survived</summary>
+    <div class="bd">
+      <table>
+        <thead><tr><th>#</th><th>Said</th><th>Arrived</th><th>Lost</th><th></th></tr></thead>
+        <tbody>
+      <tr>
+        <td class="num">0</td>
+        <td class="said">Refactor the aligner in align.py and keep the public function name as align_utterances.</td>
+        <td class="got">Refactor the aligner in align.py and keep the public function name as align\_utterances</td>
+        <td><span style="color:var(--kept)">nothing lost</span></td>
+        <td class="num">100%</td>
+      </tr>
+      <tr>
+        <td class="num">1</td>
+        <td class="said">Never collapse insertions into deletions, because that hides what the recogniser actually changed.</td>
+        <td class="got">Never collapse insertions into deletions because that hides what the recognizer actually changed</td>
+        <td><span class="tok gone">recogniser</span></td>
+        <td class="num">92%</td>
+      </tr>
+      <tr>
+        <td class="num">2</td>
+        <td class="said">Set the threshold to 0.85, not 0.5.</td>
+        <td class="got">Set the threshold to 0.85, not 0.5</td>
+        <td><span style="color:var(--kept)">nothing lost</span></td>
+        <td class="num">100%</td>
+      </tr>
+      <tr>
+        <td class="num">3</td>
+        <td class="said">Name the helper diff_tokens.</td>
+        <td class="got">Name the helper diff\_tokens</td>
+        <td><span style="color:var(--kept)">nothing lost</span></td>
+        <td class="num">100%</td>
+      </tr>
+        </tbody>
+      </table>
+
+      <h3>Requirements lost, most severe first</h3>
+      <ul style="padding-left:0;list-style:none;margin:10px 0 0">
+<p class="note">No requirements lost at this setting.</p>
+      </ul>
+    </div>
+  </details>
+  <details open>
+    <summary>Auto Cleanup Light &mdash; 86.5% of
+    tokens survived, product default</summary>
+    <div class="bd">
+      <table>
+        <thead><tr><th>#</th><th>Said</th><th>Arrived</th><th>Lost</th><th></th></tr></thead>
+        <tbody>
+      <tr>
+        <td class="num">0</td>
+        <td class="said">Refactor the aligner in align.py and keep the public function name as align_utterances.</td>
+        <td class="got">Refactor the aligner in align.py and keep the public function name as \`align\_attentions</td>
+        <td><span class="tok gone">align_utterances</span></td>
+        <td class="num">92%</td>
+      </tr>
+      <tr>
+        <td class="num">1</td>
+        <td class="said">Never collapse insertions into deletions, because that hides what the recogniser actually changed.</td>
+        <td class="got">Never collapse insertions into deletions because that hides what the recognizer actually changed</td>
+        <td><span class="tok gone">recogniser</span></td>
+        <td class="num">92%</td>
+      </tr>
+      <tr>
+        <td class="num">2</td>
+        <td class="said">Set the threshold to 0.85, not 0.5.</td>
+        <td class="got">Set the threshold to 0.85.0.5</td>
+        <td><span class="tok gone">0.85</span> <span class="tok gone">not</span> <span class="tok gone">0.5</span></td>
+        <td class="num">57%</td>
+      </tr>
+      <tr>
+        <td class="num">3</td>
+        <td class="said">Name the helper diff_tokens.</td>
+        <td class="got">Name the helper \`diff\_tokens\`.</td>
+        <td><span style="color:var(--kept)">nothing lost</span></td>
+        <td class="num">100%</td>
+      </tr>
+        </tbody>
+      </table>
+
+      <h3>Requirements lost, most severe first</h3>
+      <ul style="padding-left:0;list-style:none;margin:10px 0 0">
+      <li><span class="sev">4</span>
+        <strong>keep</strong>
+        &mdash; <code>public function align_utterances</code>
+        <div class="note">keep public function align_utterances</div></li>
+      <li><span class="sev">3</span>
+        <strong>choice</strong>
+        &mdash; <code>0.5</code>
+        <div class="note">use 0.85 not 0.5</div></li>
+      <li><span class="sev">2</span>
+        <strong>number</strong>
+        &mdash; <code>0.5</code>
+        <div class="note">0.5</div></li>
+      <li><span class="sev">2</span>
+        <strong>number</strong>
+        &mdash; <code>0.85</code>
+        <div class="note">0.85</div></li>
+      <li><span class="sev">1</span>
+        <strong>term</strong>
+        &mdash; <code>0.85</code>
+        <div class="note">use 0.85</div></li>
+      </ul>
+    </div>
+  </details>
+  <details>
+    <summary>Auto Cleanup Medium &mdash; 97.3% of
+    tokens survived</summary>
+    <div class="bd">
+      <table>
+        <thead><tr><th>#</th><th>Said</th><th>Arrived</th><th>Lost</th><th></th></tr></thead>
+        <tbody>
+      <tr>
+        <td class="num">0</td>
+        <td class="said">Refactor the aligner in align.py and keep the public function name as align_utterances.</td>
+        <td class="got">Refactor the aligner in align.py and keep the public function name as \`align\_utterances</td>
+        <td><span style="color:var(--kept)">nothing lost</span></td>
+        <td class="num">100%</td>
+      </tr>
+      <tr>
+        <td class="num">1</td>
+        <td class="said">Never collapse insertions into deletions, because that hides what the recogniser actually changed.</td>
+        <td class="got">Never collapse insertions into deletions because that hides what the recognizer actually changed</td>
+        <td><span class="tok gone">recogniser</span></td>
+        <td class="num">92%</td>
+      </tr>
+      <tr>
+        <td class="num">2</td>
+        <td class="said">Set the threshold to 0.85, not 0.5.</td>
+        <td class="got">Set the threshold to 0.85, not 0.5</td>
+        <td><span style="color:var(--kept)">nothing lost</span></td>
+        <td class="num">100%</td>
+      </tr>
+      <tr>
+        <td class="num">3</td>
+        <td class="said">Name the helper diff_tokens.</td>
+        <td class="got">Name the helper \`diff\_tokens\`</td>
+        <td><span style="color:var(--kept)">nothing lost</span></td>
+        <td class="num">100%</td>
+      </tr>
+        </tbody>
+      </table>
+
+      <h3>Requirements lost, most severe first</h3>
+      <ul style="padding-left:0;list-style:none;margin:10px 0 0">
+<p class="note">No requirements lost at this setting.</p>
+      </ul>
+    </div>
+  </details>
+  <details>
+    <summary>Auto Cleanup None &mdash; 100.0% of
+    tokens survived</summary>
+    <div class="bd">
+      <table>
+        <thead><tr><th>#</th><th>Said</th><th>Arrived</th><th>Lost</th><th></th></tr></thead>
+        <tbody>
+      <tr>
+        <td class="num">0</td>
+        <td class="said">Add a migration in db/migrate_0042.sql, and do not edit the down path.</td>
+        <td class="got">Add a migration in db/migrate\_0042.sql and do not edit the down path</td>
+        <td><span style="color:var(--kept)">nothing lost</span></td>
+        <td class="num">100%</td>
+      </tr>
+      <tr>
+        <td class="num">1</td>
+        <td class="said">Keep the retry count at three and keep the backoff exponential rather than fixed.</td>
+        <td class="got">Keep the retry count at three and keep the backoff exponential rather than fixed</td>
+        <td><span style="color:var(--kept)">nothing lost</span></td>
+        <td class="num">100%</td>
+      </tr>
+      <tr>
+        <td class="num">2</td>
+        <td class="said">No console logging in score.py.</td>
+        <td class="got">No console logging in score.py</td>
+        <td><span style="color:var(--kept)">nothing lost</span></td>
+        <td class="num">100%</td>
+      </tr>
+      <tr>
+        <td class="num">3</td>
+        <td class="said">Set the batch size to 250 rows, and do not add a sleep.</td>
+        <td class="got">Set set the batch size to 250 rows and do not add a sleep.</td>
+        <td><span style="color:var(--kept)">nothing lost</span></td>
+        <td class="num">100%</td>
+      </tr>
+        </tbody>
+      </table>
+
+      <h3>Requirements lost, most severe first</h3>
+      <ul style="padding-left:0;list-style:none;margin:10px 0 0">
+<p class="note">No requirements lost at this setting.</p>
+      </ul>
+    </div>
+  </details>
+  <details open>
+    <summary>Auto Cleanup Light &mdash; 97.7% of
+    tokens survived, product default</summary>
+    <div class="bd">
+      <table>
+        <thead><tr><th>#</th><th>Said</th><th>Arrived</th><th>Lost</th><th></th></tr></thead>
+        <tbody>
+      <tr>
+        <td class="num">0</td>
+        <td class="said">Add a migration in db/migrate_0042.sql, and do not edit the down path.</td>
+        <td class="got">Add a migration in db/migrate/0042.sql and do not edit the down path</td>
+        <td><span class="tok gone">migrate_0042.sql</span></td>
+        <td class="num">92%</td>
+      </tr>
+      <tr>
+        <td class="num">1</td>
+        <td class="said">Keep the retry count at three and keep the backoff exponential rather than fixed.</td>
+        <td class="got">Keep the retry count at 3 and keep the backoff exponential rather than fixed</td>
+        <td><span style="color:var(--kept)">nothing lost</span></td>
+        <td class="num">100%</td>
+      </tr>
+      <tr>
+        <td class="num">2</td>
+        <td class="said">No console logging in score.py.</td>
+        <td class="got">No console logging in score.py</td>
+        <td><span style="color:var(--kept)">nothing lost</span></td>
+        <td class="num">100%</td>
+      </tr>
+      <tr>
+        <td class="num">3</td>
+        <td class="said">Set the batch size to 250 rows, and do not add a sleep.</td>
+        <td class="got">Set the batch size to 250 rows and do not add a sleep.</td>
+        <td><span style="color:var(--kept)">nothing lost</span></td>
+        <td class="num">100%</td>
+      </tr>
+        </tbody>
+      </table>
+
+      <h3>Requirements lost, most severe first</h3>
+      <ul style="padding-left:0;list-style:none;margin:10px 0 0">
+      <li><span class="sev">2</span>
+        <strong>filename</strong>
+        &mdash; <code>migrate_0042.sql</code>
+        <div class="note">migrate_0042.sql</div></li>
+      </ul>
+    </div>
+  </details>
 
 <h2 id="checked">How the scorer was checked</h2>
 <p class="note">The figures above come from a scorer. Three checks run against it, and each
@@ -1759,19 +2196,19 @@ one has caught it being wrong.</p>
     differ from the earlier version of this report.</p>
   </div>
 </div>
-<p class="note">144 tests. <code>pytest</code>,
+<p class="note">147 tests. <code>pytest</code>,
 <code>node scripts/check-parity.mjs</code>, <code>python scripts/mutation.py</code>.</p>
 
 <h2 id="limitations">What this evidence cannot tell you</h2>
 <div class="warnbox">
   <ul class="lim">
-<li>Six captures and sixteen runs, one speaker, one session per day. That is enough to show an effect is real and to characterise its spread. No confidence interval is claimed, and the settings are not evenly sampled: two captures are missing one setting each, so n differs by row.</li><li>The utterances are technical instructions the author wrote and then read aloud, deliberately dense with filenames, numerals and prohibitions. They are not a random sample of development speech and the effects here are upper bounds on how often they occur.</li><li>The spoken side is the script, not a transcript. A local ASR engine read the same audio and disagreed with Wispr in both directions, so neither is treated as ground truth.</li><li>Number folding treats a bare unit word that is also a number word as a number, so &#x27;one file&#x27; becomes &#x27;1 file&#x27;. Both sides fold identically so nothing is lost, but the token count is not the raw count of what was said.</li><li>A number run broken by a non-number word is left alone, so &#x27;two point none&#x27; stays as written. That protects version strings at the cost of missing a decimal that was genuinely spelled out.</li><li>Backslash escaping is undone outside code spans as well as inside them, because escaped backticks make a code span impossible to detect reliably. A backslash that a reader would actually see is therefore scored as surviving.</li><li>Reading pace was not held constant across the passes.</li><li>Audio is not published, because it contains a voice.</li>
+<li>Nine captures, twenty-four runs, one speaker, one session per day. Enough to show an effect is real and to measure its spread. Not enough to characterise a distribution, and no confidence interval is claimed.</li><li>The setting each sweep run came from is inferred from capture order, not read from the app. The API does not record which Auto Cleanup level was active. u8 has no Medium run, so its n is two.</li><li>The utterances are technical instructions the author wrote and then read aloud, deliberately dense with filenames, numerals and prohibitions. They are not a random sample of development speech.</li><li>The spoken side is the script, not a transcript. A local ASR engine read some of the same audio and disagreed with Wispr in both directions, so neither is treated as ground truth.</li><li>Number folding treats a bare unit word that is also a number word as a number, so &#x27;one file&#x27; becomes &#x27;1 file&#x27;. Both sides fold identically so nothing is lost, but the token count is not the raw count of what was said.</li><li>Backslash escaping is undone everywhere, not only outside code spans. Escaped backticks make a code span impossible to detect reliably, so a backslash a reader would actually see is scored as surviving.</li><li>Reading pace was not held constant across the passes.</li><li>Audio is excluded from git, and none of it matches these captures anyway. The recordings predate the corpus restructure and document an earlier capture, which is not any capture here.</li>
   </ul>
 </div>
 
 <footer class="footer-wrap">
   <div class="footer-meta">
-    <span>BUILT BY VOICE &bull; WISPR FLOW [CLEANUP: NONE] &bull; 144 TESTS, 13 MUTATIONS &bull; PAGE SCORER CHECKED AGAINST THE PACKAGE</span>
+    <span>BUILT BY VOICE &bull; WISPR FLOW [CLEANUP: NONE] &bull; 147 TESTS, 13 MUTATIONS &bull; PAGE SCORER CHECKED AGAINST THE PACKAGE</span>
   </div>
   <div class="footer-links">
     <a href="https://github.com/j4yop/passthru" target="_blank" rel="noopener noreferrer">Source Code</a>
@@ -1784,7 +2221,7 @@ one has caught it being wrong.</p>
 
 </div>
 <script>
-const SAMPLES = {"u1:None": {"said": "Add a test file called test_score.py that pins the tokenizer, and make sure it covers the trailing period case, so score.py followed by a full stop must not be treated as a different token. Only use the standard library, no pytest, because we want it to run without installing anything. The threshold should be 0.7, not 0.5. And it has to run on Python 3.10, since we still support that. Oh wait, actually, scratch the 3.10 part, that's for the other repo.", "got": "Add a test file called test\\_score.py that tests the tokenizer and make sure it covers the trailing period case. So score.py followed by a full stop must not be treated as a different token\nOnly use the standard library, no pytest, because we want it to run without installing anything\nThe threshold should be 0.7. not zero point five\nIt has to run a Python three point ten. Since we still support that\nOh wait, actually scratch the three point ten part. That's for other repo.", "bySetting": {"None": "u1:None", "Light": "u1:Light", "Medium": "u1:Medium"}}, "u1:Light": {"said": "Add a test file called test_score.py that pins the tokenizer, and make sure it covers the trailing period case, so score.py followed by a full stop must not be treated as a different token. Only use the standard library, no pytest, because we want it to run without installing anything. The threshold should be 0.7, not 0.5. And it has to run on Python 3.10, since we still support that. Oh wait, actually, scratch the 3.10 part, that's for the other repo.", "got": "Add a test file called test\\_score.py that tests the tokenizer and make sure it covers the trailing period case. score.py followed by a full stop must not be treated as a different token\nOnly use the standard library, not pytest, because we want it to run without installing anything\nThe threshold should be 0.7 not 0.5", "bySetting": {"None": "u1:None", "Light": "u1:Light", "Medium": "u1:Medium"}}, "u1:Medium": {"said": "Add a test file called test_score.py that pins the tokenizer, and make sure it covers the trailing period case, so score.py followed by a full stop must not be treated as a different token. Only use the standard library, no pytest, because we want it to run without installing anything. The threshold should be 0.7, not 0.5. And it has to run on Python 3.10, since we still support that. Oh wait, actually, scratch the 3.10 part, that's for the other repo.", "got": "Add a test file called test\\_score.py that tests the tokenizer and make sure it covers the trailing period case. score.py. must not be treated as a different token\nOnly use the standard library, not pytest, because we want it to run without installing anything\nThe threshold should be 0.7, not 0.5", "bySetting": {"None": "u1:None", "Light": "u1:Light", "Medium": "u1:Medium"}}, "u2:Light": {"said": "Style the sidebar so the panel is 240 pixels wide, and never let it collapse on mobile, because that breaks the whole layout. Use flexbox, not grid. The gap between items should be 1rem, and the border radius is 8 pixels. Oh, and actually, don't bother with the dark mode variant yet, that's a separate ticket.", "got": "Style the side bar so the panel is 240px wide and never let it collapse on mobile because that breaks the whole layout\nUse flexbox not grid\nThe gap between items should be 1rem and the border radius is 8px\nActually don't border with the dark mode variant yet. That's a separate ticket", "bySetting": {"Light": "u2:Light", "None": "u2:None", "Medium": "u2:Medium"}}, "u2:None": {"said": "Style the sidebar so the panel is 240 pixels wide, and never let it collapse on mobile, because that breaks the whole layout. Use flexbox, not grid. The gap between items should be 1rem, and the border radius is 8 pixels. Oh, and actually, don't bother with the dark mode variant yet, that's a separate ticket.", "got": "Style the side bar so the panel is 240 pixels wide and never let it collapse on mobile because that breaks the whole layout\nUse flexbox not grid\nThe gap between items should be one rem and the border radius is eight pixels\nOh and actually don't bother with the dark mode variant yet. That's a separate ticket", "bySetting": {"Light": "u2:Light", "None": "u2:None", "Medium": "u2:Medium"}}, "u2:Medium": {"said": "Style the sidebar so the panel is 240 pixels wide, and never let it collapse on mobile, because that breaks the whole layout. Use flexbox, not grid. The gap between items should be 1rem, and the border radius is 8 pixels. Oh, and actually, don't bother with the dark mode variant yet, that's a separate ticket.", "got": "Style the sidebar so the panel is 240px wide and never let it collapse on mobile because that breaks the whole layout\nUse flexbox, not grid\nThe gap between items should be 1rem, and the border radius is 8px\nDon't bother with the dark mode variant yet. That's a separate ticket.", "bySetting": {"Light": "u2:Light", "None": "u2:None", "Medium": "u2:Medium"}}, "u3:Light": {"said": "Add an index on the orders table, and never drop the customer_id column, because the monthly report depends on it. Match on status, not on state. The index should cover created_at, and keep it non-unique so duplicate rows still insert.", "got": "Add an index on the orders table and never drop the customer ID column because the monthly report depends on it\nMatch on status not on state\nThe index should cover created\\_at and keep it non-unique so duplicate rows still insert", "bySetting": {"Light": "u3:Light", "None": "u3:None"}}, "u3:None": {"said": "Add an index on the orders table, and never drop the customer_id column, because the monthly report depends on it. Match on status, not on state. The index should cover created_at, and keep it non-unique so duplicate rows still insert.", "got": "Add an index on the orders table and never drop the customer ID column because the monthly report depends on it\nMatch on status not on state\nThe index should cover created\\_at and keep it non-unique so duplicate rows still insert", "bySetting": {"Light": "u3:Light", "None": "u3:None"}}, "u3d:None": {"said": "Add an index on the orders table, and never drop the customer_id column, because the monthly report depends on it. Match on status, not on state. The index should cover created_at, and keep it non-unique so duplicate rows still insert.", "got": "Add an index on the orders table and never drop the customer\\_id column because the monthly report depends on it\nMatch on status, not on state\nThe index should cover created\\_at and keep it non-unique so duplicate rows still insert", "bySetting": {"None": "u3d:None", "Medium": "u3d:Medium"}}, "u3d:Medium": {"said": "Add an index on the orders table, and never drop the customer_id column, because the monthly report depends on it. Match on status, not on state. The index should cover created_at, and keep it non-unique so duplicate rows still insert.", "got": "Add an index on the orders table and never drop the \\`customer\\_id\\` column because the monthly report depends on it\nMatch on status, not on state\nThe index should cover \\`created\\_at\\` and be non-unique so duplicate rows can still be inserted", "bySetting": {"None": "u3d:None", "Medium": "u3d:Medium"}}, "u4:Light": {"said": "Set the timeout to 30 seconds in the deploy config, and never commit the staging credentials, because that would leak them. Use the environment variable, not a literal. The retry count is 3, and keep the backoff exponential rather than fixed.", "got": "Set the timeout to 30 seconds in the deploy config and never commit the staging credentials because that would leak them\nUse the environment variable not a literal\nThe retry count is 3 and keep the backoff exponential rather than fixed", "bySetting": {"Light": "u4:Light", "None": "u4:None", "Medium": "u4:Medium"}}, "u4:None": {"said": "Set the timeout to 30 seconds in the deploy config, and never commit the staging credentials, because that would leak them. Use the environment variable, not a literal. The retry count is 3, and keep the backoff exponential rather than fixed.", "got": "Set the timeout to 30 seconds in the deploy config and never commit the staging credentials because that would leak them\nUse the environment variable, not a literal\nThe retry count is three, and keep the backoff exponential rather than fixed", "bySetting": {"Light": "u4:Light", "None": "u4:None", "Medium": "u4:Medium"}}, "u4:Medium": {"said": "Set the timeout to 30 seconds in the deploy config, and never commit the staging credentials, because that would leak them. Use the environment variable, not a literal. The retry count is 3, and keep the backoff exponential rather than fixed.", "got": "Set the timeout to 30 seconds in the deploy config, and never commit the staging credentials because that would leak them\nUse the environment variable, not a literal\nThe retry count is 3, and keep the backoff exponential rather than fixed.", "bySetting": {"Light": "u4:Light", "None": "u4:None", "Medium": "u4:Medium"}}, "u5:Light": {"said": "Refactor the payment handler into two functions, and never change the rounding behaviour, because the finance team reconciles against it. Name the new file payment_utils.py. Keep the currency as an integer, not a float, and raise on anything over 99 cents rather than silently capping.", "got": "Refactor the payment handler into two functions and never change the rounding behaviour because the finance team reconciles against it\nName the new file payment\\_utils.py\nKeep the currency as an integer not a float and raise on anything over 99 cents rather than silently capping", "bySetting": {"Light": "u5:Light", "None": "u5:None", "Medium": "u5:Medium"}}, "u5:None": {"said": "Refactor the payment handler into two functions, and never change the rounding behaviour, because the finance team reconciles against it. Name the new file payment_utils.py. Keep the currency as an integer, not a float, and raise on anything over 99 cents rather than silently capping.", "got": "Refactor the payment handler into two functions and never change the rounding behaviour because the finance team reconciles against it\nName the new file payment\\_utils.py\nKeep the currency as an integer, not a float, and raise on anything over ninety nine cents rather than silently capping", "bySetting": {"Light": "u5:Light", "None": "u5:None", "Medium": "u5:Medium"}}, "u5:Medium": {"said": "Refactor the payment handler into two functions, and never change the rounding behaviour, because the finance team reconciles against it. Name the new file payment_utils.py. Keep the currency as an integer, not a float, and raise on anything over 99 cents rather than silently capping.", "got": "Refactor the payment handler into two functions and never change the rounding behaviour because the finance team reconciles against it\nName the new file payment\\_utils.py\nKeep the currency as an integer, not a float, and raise on anything over 99 cents rather than silently capping", "bySetting": {"Light": "u5:Light", "None": "u5:None", "Medium": "u5:Medium"}}};
+const SAMPLES = {"u1:None": {"said": "Add a test file called test_score.py that pins the tokenizer, and make sure it covers the trailing period case, so score.py followed by a full stop must not be treated as a different token. Only use the standard library, no pytest, because we want it to run without installing anything. The threshold should be 0.7, not 0.5. And it has to run on Python 3.10, since we still support that. Oh wait, actually, scratch the 3.10 part, that's for the other repo.", "got": "Add a test file called test\\_score.py that tests the tokenizer and make sure it covers the trailing period case. So score.py followed by a full stop must not be treated as a different token\nOnly use the standard library, no pytest, because we want it to run without installing anything\nThe threshold should be 0.7. not zero point five\nIt has to run a Python three point ten. Since we still support that\nOh wait, actually scratch the three point ten part. That's for other repo.", "bySetting": {"None": "u1:None", "Light": "u1:Light", "Medium": "u1:Medium"}}, "u1:Light": {"said": "Add a test file called test_score.py that pins the tokenizer, and make sure it covers the trailing period case, so score.py followed by a full stop must not be treated as a different token. Only use the standard library, no pytest, because we want it to run without installing anything. The threshold should be 0.7, not 0.5. And it has to run on Python 3.10, since we still support that. Oh wait, actually, scratch the 3.10 part, that's for the other repo.", "got": "Add a test file called test\\_score.py that tests the tokenizer and make sure it covers the trailing period case. score.py followed by a full stop must not be treated as a different token\nOnly use the standard library, not pytest, because we want it to run without installing anything\nThe threshold should be 0.7 not 0.5", "bySetting": {"None": "u1:None", "Light": "u1:Light", "Medium": "u1:Medium"}}, "u1:Medium": {"said": "Add a test file called test_score.py that pins the tokenizer, and make sure it covers the trailing period case, so score.py followed by a full stop must not be treated as a different token. Only use the standard library, no pytest, because we want it to run without installing anything. The threshold should be 0.7, not 0.5. And it has to run on Python 3.10, since we still support that. Oh wait, actually, scratch the 3.10 part, that's for the other repo.", "got": "Add a test file called test\\_score.py that tests the tokenizer and make sure it covers the trailing period case. score.py. must not be treated as a different token\nOnly use the standard library, not pytest, because we want it to run without installing anything\nThe threshold should be 0.7, not 0.5", "bySetting": {"None": "u1:None", "Light": "u1:Light", "Medium": "u1:Medium"}}, "u2:Light": {"said": "Style the sidebar so the panel is 240 pixels wide, and never let it collapse on mobile, because that breaks the whole layout. Use flexbox, not grid. The gap between items should be 1rem, and the border radius is 8 pixels. Oh, and actually, don't bother with the dark mode variant yet, that's a separate ticket.", "got": "Style the side bar so the panel is 240px wide and never let it collapse on mobile because that breaks the whole layout\nUse flexbox not grid\nThe gap between items should be 1rem and the border radius is 8px\nActually don't border with the dark mode variant yet. That's a separate ticket", "bySetting": {"Light": "u2:Light", "None": "u2:None", "Medium": "u2:Medium"}}, "u2:None": {"said": "Style the sidebar so the panel is 240 pixels wide, and never let it collapse on mobile, because that breaks the whole layout. Use flexbox, not grid. The gap between items should be 1rem, and the border radius is 8 pixels. Oh, and actually, don't bother with the dark mode variant yet, that's a separate ticket.", "got": "Style the side bar so the panel is 240 pixels wide and never let it collapse on mobile because that breaks the whole layout\nUse flexbox not grid\nThe gap between items should be one rem and the border radius is eight pixels\nOh and actually don't bother with the dark mode variant yet. That's a separate ticket", "bySetting": {"Light": "u2:Light", "None": "u2:None", "Medium": "u2:Medium"}}, "u2:Medium": {"said": "Style the sidebar so the panel is 240 pixels wide, and never let it collapse on mobile, because that breaks the whole layout. Use flexbox, not grid. The gap between items should be 1rem, and the border radius is 8 pixels. Oh, and actually, don't bother with the dark mode variant yet, that's a separate ticket.", "got": "Style the sidebar so the panel is 240px wide and never let it collapse on mobile because that breaks the whole layout\nUse flexbox, not grid\nThe gap between items should be 1rem, and the border radius is 8px\nDon't bother with the dark mode variant yet. That's a separate ticket.", "bySetting": {"Light": "u2:Light", "None": "u2:None", "Medium": "u2:Medium"}}, "u3:Light": {"said": "Add an index on the orders table, and never drop the customer_id column, because the monthly report depends on it. Match on status, not on state. The index should cover created_at, and keep it non-unique so duplicate rows still insert.", "got": "Add an index on the orders table and never drop the customer ID column because the monthly report depends on it\nMatch on status not on state\nThe index should cover created\\_at and keep it non-unique so duplicate rows still insert", "bySetting": {"Light": "u3:Light", "None": "u3:None"}}, "u3:None": {"said": "Add an index on the orders table, and never drop the customer_id column, because the monthly report depends on it. Match on status, not on state. The index should cover created_at, and keep it non-unique so duplicate rows still insert.", "got": "Add an index on the orders table and never drop the customer ID column because the monthly report depends on it\nMatch on status not on state\nThe index should cover created\\_at and keep it non-unique so duplicate rows still insert", "bySetting": {"Light": "u3:Light", "None": "u3:None"}}, "u3d:None": {"said": "Add an index on the orders table, and never drop the customer_id column, because the monthly report depends on it. Match on status, not on state. The index should cover created_at, and keep it non-unique so duplicate rows still insert.", "got": "Add an index on the orders table and never drop the customer\\_id column because the monthly report depends on it\nMatch on status, not on state\nThe index should cover created\\_at and keep it non-unique so duplicate rows still insert", "bySetting": {"None": "u3d:None", "Medium": "u3d:Medium"}}, "u3d:Medium": {"said": "Add an index on the orders table, and never drop the customer_id column, because the monthly report depends on it. Match on status, not on state. The index should cover created_at, and keep it non-unique so duplicate rows still insert.", "got": "Add an index on the orders table and never drop the \\`customer\\_id\\` column because the monthly report depends on it\nMatch on status, not on state\nThe index should cover \\`created\\_at\\` and be non-unique so duplicate rows can still be inserted", "bySetting": {"None": "u3d:None", "Medium": "u3d:Medium"}}, "u4:Light": {"said": "Set the timeout to 30 seconds in the deploy config, and never commit the staging credentials, because that would leak them. Use the environment variable, not a literal. The retry count is 3, and keep the backoff exponential rather than fixed.", "got": "Set the timeout to 30 seconds in the deploy config and never commit the staging credentials because that would leak them\nUse the environment variable not a literal\nThe retry count is 3 and keep the backoff exponential rather than fixed", "bySetting": {"Light": "u4:Light", "None": "u4:None", "Medium": "u4:Medium"}}, "u4:None": {"said": "Set the timeout to 30 seconds in the deploy config, and never commit the staging credentials, because that would leak them. Use the environment variable, not a literal. The retry count is 3, and keep the backoff exponential rather than fixed.", "got": "Set the timeout to 30 seconds in the deploy config and never commit the staging credentials because that would leak them\nUse the environment variable, not a literal\nThe retry count is three, and keep the backoff exponential rather than fixed", "bySetting": {"Light": "u4:Light", "None": "u4:None", "Medium": "u4:Medium"}}, "u4:Medium": {"said": "Set the timeout to 30 seconds in the deploy config, and never commit the staging credentials, because that would leak them. Use the environment variable, not a literal. The retry count is 3, and keep the backoff exponential rather than fixed.", "got": "Set the timeout to 30 seconds in the deploy config, and never commit the staging credentials because that would leak them\nUse the environment variable, not a literal\nThe retry count is 3, and keep the backoff exponential rather than fixed.", "bySetting": {"Light": "u4:Light", "None": "u4:None", "Medium": "u4:Medium"}}, "u5:Light": {"said": "Refactor the payment handler into two functions, and never change the rounding behaviour, because the finance team reconciles against it. Name the new file payment_utils.py. Keep the currency as an integer, not a float, and raise on anything over 99 cents rather than silently capping.", "got": "Refactor the payment handler into two functions and never change the rounding behaviour because the finance team reconciles against it\nName the new file payment\\_utils.py\nKeep the currency as an integer not a float and raise on anything over 99 cents rather than silently capping", "bySetting": {"Light": "u5:Light", "None": "u5:None", "Medium": "u5:Medium"}}, "u5:None": {"said": "Refactor the payment handler into two functions, and never change the rounding behaviour, because the finance team reconciles against it. Name the new file payment_utils.py. Keep the currency as an integer, not a float, and raise on anything over 99 cents rather than silently capping.", "got": "Refactor the payment handler into two functions and never change the rounding behaviour because the finance team reconciles against it\nName the new file payment\\_utils.py\nKeep the currency as an integer, not a float, and raise on anything over ninety nine cents rather than silently capping", "bySetting": {"Light": "u5:Light", "None": "u5:None", "Medium": "u5:Medium"}}, "u5:Medium": {"said": "Refactor the payment handler into two functions, and never change the rounding behaviour, because the finance team reconciles against it. Name the new file payment_utils.py. Keep the currency as an integer, not a float, and raise on anything over 99 cents rather than silently capping.", "got": "Refactor the payment handler into two functions and never change the rounding behaviour because the finance team reconciles against it\nName the new file payment\\_utils.py\nKeep the currency as an integer, not a float, and raise on anything over 99 cents rather than silently capping", "bySetting": {"Light": "u5:Light", "None": "u5:None", "Medium": "u5:Medium"}}, "u6:None": {"said": "Add a test file called test_score.py that pins the tokenizer, keep it under 200 lines, and never import pytest. Use difflib, not Levenshtein. Make the gap between items one rem and the border radius eight pixels. Do not use tabs.", "got": "Add a test file called test\\_score\\_dot\\_py that tests the tokenizer. Keep it under 200 lines and never import pytest\nUse difflib, not libstein\nMake the gap between items 1rem and the order radius 8 pixels\nDo not use tabs.", "bySetting": {"None": "u6:None", "Light": "u6:Light", "Medium": "u6:Medium"}}, "u6:Light": {"said": "Add a test file called test_score.py that pins the tokenizer, keep it under 200 lines, and never import pytest. Use difflib, not Levenshtein. Make the gap between items one rem and the border radius eight pixels. Do not use tabs.", "got": "Add a test file called test\\_score.py that tests the tokenizer. - Keep it under 200 lines and never import pytest\nUse difflib not levenshtein\nMake the gap between items 1rem and the border radius 8px\nDo not use tabs.", "bySetting": {"None": "u6:None", "Light": "u6:Light", "Medium": "u6:Medium"}}, "u6:Medium": {"said": "Add a test file called test_score.py that pins the tokenizer, keep it under 200 lines, and never import pytest. Use difflib, not Levenshtein. Make the gap between items one rem and the border radius eight pixels. Do not use tabs.", "got": "Add a test file called test\\_score.py that tests the tokenizer. - Keep it under 200 lines and never import pytest\nUse \\`difflib\\`, not \\`levenshtein\nMake the gap between items on the rim at the border radius 8 px\nDo not use tabs.", "bySetting": {"None": "u6:None", "Light": "u6:Light", "Medium": "u6:Medium"}}, "u7:None": {"said": "Refactor the aligner in align.py and keep the public function name as align_utterances. Never collapse insertions into deletions, because that hides what the recogniser actually changed. Set the threshold to 0.85, not 0.5. Name the helper diff_tokens.", "got": "Refactor the aligner in align.py and keep the public function name as align\\_utterances\nNever collapse insertions into deletions because that hides what the recognizer actually changed\nSet the threshold to 0.85, not 0.5\nName the helper diff\\_tokens", "bySetting": {"None": "u7:None", "Light": "u7:Light", "Medium": "u7:Medium"}}, "u7:Light": {"said": "Refactor the aligner in align.py and keep the public function name as align_utterances. Never collapse insertions into deletions, because that hides what the recogniser actually changed. Set the threshold to 0.85, not 0.5. Name the helper diff_tokens.", "got": "Refactor the aligner in align.py and keep the public function name as \\`align\\_attentions\nNever collapse insertions into deletions because that hides what the recognizer actually changed\nSet the threshold to 0.85.0.5\nName the helper \\`diff\\_tokens\\`.", "bySetting": {"None": "u7:None", "Light": "u7:Light", "Medium": "u7:Medium"}}, "u7:Medium": {"said": "Refactor the aligner in align.py and keep the public function name as align_utterances. Never collapse insertions into deletions, because that hides what the recogniser actually changed. Set the threshold to 0.85, not 0.5. Name the helper diff_tokens.", "got": "Refactor the aligner in align.py and keep the public function name as \\`align\\_utterances\nNever collapse insertions into deletions because that hides what the recognizer actually changed\nSet the threshold to 0.85, not 0.5\nName the helper \\`diff\\_tokens\\`", "bySetting": {"None": "u7:None", "Light": "u7:Light", "Medium": "u7:Medium"}}, "u8:None": {"said": "Add a migration in db/migrate_0042.sql, and do not edit the down path. Keep the retry count at three and keep the backoff exponential rather than fixed. No console logging in score.py. Set the batch size to 250 rows, and do not add a sleep.", "got": "Add a migration in db/migrate\\_0042.sql and do not edit the down path\nKeep the retry count at three and keep the backoff exponential rather than fixed\nNo console logging in score.py\nSet set the batch size to 250 rows and do not add a sleep.", "bySetting": {"None": "u8:None", "Light": "u8:Light"}}, "u8:Light": {"said": "Add a migration in db/migrate_0042.sql, and do not edit the down path. Keep the retry count at three and keep the backoff exponential rather than fixed. No console logging in score.py. Set the batch size to 250 rows, and do not add a sleep.", "got": "Add a migration in db/migrate/0042.sql and do not edit the down path\nKeep the retry count at 3 and keep the backoff exponential rather than fixed\nNo console logging in score.py\nSet the batch size to 250 rows and do not add a sleep.", "bySetting": {"None": "u8:None", "Light": "u8:Light"}}};
 // Passthru browser scorer.
 //
 // A faithful port of score.py's tokenizer and diff so the numbers on this page match
@@ -1906,7 +2343,16 @@ function cleanToken(raw) {
     }
     token += raw[i];
   }
-  return token.replace(/^`+/, '').replace(/`+$/, '').replace(TRAILING, '');
+  // Alternated until stable, because the two rules interleave. A code span closed at the
+  // end of a sentence is `levenshtein`. -- backtick, then full stop -- so stripping
+  // backticks first leaves the full stop last and the backtick ends up inside the token,
+  // which makes an identifier that arrived intact score as lost.
+  let previous;
+  do {
+    previous = token;
+    token = token.replace(/^`+/, '').replace(/`+$/, '').replace(TRAILING, '');
+  } while (token !== previous);
+  return token;
 }
 
 function tokenize(text) {

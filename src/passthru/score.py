@@ -98,16 +98,24 @@ def _token_span(raw: str, offset: int) -> tuple[str, int, int] | None:
         kept.append((char, index))
         index += 1
 
-    # Backticks delimit a code span, which is markup rather than part of the name. Only
-    # leading and trailing ones go, so a name that genuinely contains one is unharmed.
-    while kept and kept[0][0] == "`":
-        kept.pop(0)
-    while kept and kept[-1][0] == "`":
-        kept.pop()
-    # Trailing `.` and `_` are sentence punctuation. Leading ones are kept, because `.env`
-    # and `.gitignore` are named that way.
-    while kept and kept[-1][0] in _TRAILING:
-        kept.pop()
+    # Strip the tail by alternation until it stops changing, because the two rules interleave.
+    # A code span closed at the end of a sentence is `` `levenshtein`. `` -- backtick, then
+    # full stop -- so stripping backticks first leaves the full stop as the last character and
+    # the backtick survives inside the token. The tokenizer then reports `levenshtein` lost
+    # when it arrived intact, which is the same false loss as an escaped filename, one level
+    # deeper. Leading dots are kept, because `.env` and `.gitignore` are named that way.
+    while kept:
+        before = len(kept)
+        if kept[0][0] == "`":
+            kept.pop(0)
+        while kept and kept[-1][0] in _TRAILING:
+            kept.pop()
+        if kept and kept[-1][0] == "`":
+            kept.pop()
+        while kept and kept[-1][0] in _TRAILING:
+            kept.pop()
+        if len(kept) == before:
+            break
 
     if not kept:
         return None

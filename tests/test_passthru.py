@@ -263,47 +263,31 @@ def views():
     return from_corpus(corpus)
 
 
-def test_raw_passthrough_never_loses_a_prohibition_or_a_choice(views):
-    """Raw passthrough does lose filenames, and every one is the backslash escape.
+def test_raw_passthrough_loses_no_prohibition_in_the_corpus(views):
+    """Raw passthrough never inverted a prohibition. A measured result, not a rule.
 
-    payment_utils.py arrives as payment\\_utils.py and test_score.py as test\\_score.py.
-    That happens in the recognition layer, before cleanup, so no setting causes or prevents
-    it, which is exactly why advice refuses to recommend a setting change for it.
-
-    What raw passthrough must never lose is a prohibition or a choice, where absence
-    changes what the instruction means rather than just its spelling.
+    It did lose a rejected alternative: on u6, "difflib, not Levenshtein" arrived with the
+    rejection gone, which leaves the instruction ambiguous rather than absent. So the
+    earlier version of this test -- which asserted raw passthrough lost no choice either --
+    was falsified by capture and had to be narrowed to what the evidence supports.
     """
-    import re
-
-    numeric = re.compile(r"^\d+(?:[.,]\d+)*$")
-
-    def semantic(r):
-        # A filename loss is the backslash escape. A numeric choice loss is a numeral
-        # written as words. Neither is damage to meaning, and both are measured rather than
-        # caused. What is left would be a real loss: a prohibition, an instruction to keep
-        # something, or a choice between named alternatives.
-        if r.kind == "choice":
-            return not numeric.match(r.value.strip())
-        return r.kind in ("prohibition", "keep")
-
     clean = [v for v in views if v.auto_cleanup == "None"]
     assert clean, "expected raw passthrough runs"
     for view in clean:
-        lost = [r for r in view.lost_requirements if semantic(r)]
-        assert not lost, (
-            f"{view.capture} lost something semantic at None: "
-            f"{[(r.kind, r.value) for r in lost]}"
+        prohibitions = [r for r in view.lost_requirements if r.kind == "prohibition"]
+        assert not prohibitions, (
+            f"{view.capture} lost a prohibition at None: {[r.value for r in prohibitions]}"
         )
 
-    # And every loss it does report is one of the two measured artefacts: a filename hit by
-    # the backslash escape, or a numeral written as words.
-    for view in clean:
-        for requirement in view.lost_requirements:
-            explained = requirement.kind == "filename" or numeric.match(requirement.value.strip())
-            assert explained, (
-                f"{view.capture} lost a {requirement.kind} ({requirement.value!r}) at None, "
-                "which neither the backslash escape nor numeral formatting explains"
-            )
+
+def test_the_rejected_alternative_was_lost_by_raw_passthrough_on_u6(views):
+    """Pinned because it is the finding that broke the tidier story.
+
+    Nobody would expect the setting that rewrites nothing to drop half of "difflib, not
+    Levenshtein", and the tool reporting it is a reason to trust the rest of what it reports.
+    """
+    u6 = next(v for v in views if v.capture == "u6" and v.auto_cleanup == "None")
+    assert {r.kind: r.value for r in u6.lost_requirements}.get("choice") == "levenshtein"
 
 
 def test_the_prohibition_inversion_is_isolated_to_the_rewrite_settings(views):
@@ -331,17 +315,26 @@ def test_the_prohibition_inversion_is_isolated_to_the_rewrite_settings(views):
 def test_rewrite_settings_are_unpredictable(views):
     """The finding the corpus exists to support.
 
-    Raw passthrough is tight across every utterance. The rewrite settings swing by more
-    than thirty points, and neither has a floor. Asserted as a property of the data rather
-    than one cherry-picked utterance.
+    The rewrite settings swing by more than thirty points and neither has a floor. Raw
+    passthrough swings far less -- 15 points rather than 35 and 41 -- but it no longer holds
+    under ten, and that change is real rather than cosmetic. The sweep found u6, where raw
+    passthrough scored 85.0 against 87.5 for both rewrite settings, having dropped the
+    rejected half of "difflib, not Levenshtein".
+
+    So the honest property is a three-to-one ratio of spreads, not an absolute. Asserted
+    against the data rather than a number the previous corpus happened to produce.
     """
     def spread(setting):
         ratios = [v.ratio for v in views if v.auto_cleanup == setting]
         return (max(ratios) - min(ratios)) * 100
 
-    assert spread("None") < 10, "raw passthrough should not swing"
     assert spread("Light") > 25, "the default setting should swing"
-    assert min(v.ratio for v in views if v.auto_cleanup == "None") >= 0.85
+    assert spread("Medium") > 25, "the heaviest rewrite should swing"
+    assert spread("None") * 2 < spread("Light"), (
+        f"raw passthrough spread {spread('None'):.1f} is no longer far tighter than "
+        f"Light's {spread('Light'):.1f}"
+    )
+    assert min(v.ratio for v in views if v.auto_cleanup == "None") >= 0.80
 
 
 def test_the_prohibition_inversion_is_recorded(views):
@@ -366,7 +359,7 @@ def test_raw_passthrough_has_a_floor_the_rewrite_settings_lack(views):
     and neither has a floor. That asymmetry, not a clean sweep, is the finding.
     """
     none_ratios = [v.ratio for v in views if v.auto_cleanup == "None"]
-    assert min(none_ratios) >= 0.85, f"None fell to {min(none_ratios):.1%}"
+    assert min(none_ratios) >= 0.80, f"None fell to {min(none_ratios):.1%}"
 
     for setting in ("Light", "Medium"):
         ratios = [v.ratio for v in views if v.auto_cleanup == setting]
@@ -377,22 +370,76 @@ def test_raw_passthrough_has_a_floor_the_rewrite_settings_lack(views):
         assert max(ratios) - min(ratios) > 0.25, f"{setting} did not swing"
 
 
-def test_advice_makes_no_recommendation_on_this_corpus(views):
-    """The honest outcome, and the one worth asserting.
+def test_which_setting_is_safest_depends_on_the_prompt(views):
+    """The sweep produced the counterexample that makes the finding sharp.
 
-    Every remaining loss in this corpus is either the backslash escape, which happens in
-    recognition and which no setting touches, or a numeral written as words, which is the
-    scorer's noise rather than damage. So there is no evidence any setting change would
-    help, and the tool says so for every run rather than inventing a recommendation.
+    Raw passthrough is the best setting on six captures. It is not on u4, where both rewrite
+    settings scored 100.0 against its 97.6, and not on u6, where both scored 87.5 against its
+    85.0. So "use raw passthrough" is a good default and not a rule, which is a different and
+    more defensible claim than "cleanup always damages your prompt".
+    """
+    beaten = []
+    for capture in sorted({v.capture for v in views}):
+        row = {v.auto_cleanup: v.ratio for v in views if v.capture == capture}
+        if len(row) > 1 and "None" in row and max(row.values()) > row["None"] + 1e-9:
+            beaten.append(capture)
+    assert beaten == ["u4", "u6"], f"captures where a rewrite setting beat raw: {beaten}"
+
+
+def test_advice_recommends_on_captures_that_have_a_sibling_at_every_setting(views):
+    """The sweep is the first corpus with three passes of the same utterance, so the advice
+    rule finally has the witness it requires and can say something.
+
+    It used to refuse everywhere. Every capture but four was missing a setting, so there was
+    no sibling to compare against, and a refusal was the only honest output. Now the
+    recommendations exist -- and they have to be earned: each must name a requirement that
+    this setting lost and the sibling kept.
     """
     advices = advise(views)
     assert advices
-    assert not any(a.has_recommendation for a in advices), (
-        "advice recommended a change the corpus does not support: "
-        + "; ".join(f"{a.run_id}->{a.change_to} {a.would_recover}" for a in advices if a.has_recommendation)
-    )
-    for a in advices:
-        assert a.reason, "every refusal must say why"
+    complete = {
+        v.capture for v in views
+        if {x.auto_cleanup for x in views if x.capture == v.capture} >= {"None", "Light", "Medium"}
+    }
+    for advice in advices:
+        if advice.has_recommendation:
+            assert advice.capture if hasattr(advice, "capture") else True
+            assert advice.would_recover, (
+                f"{advice.run_id} recommends {advice.change_to} but names nothing recovered"
+            )
+            assert advice.change_to != advice.auto_cleanup
+        else:
+            assert advice.reason, "every refusal must say why"
+
+    # And at least one complete capture must produce a recommendation, or the rule has
+    # silently stopped working.
+    assert any(
+        a.has_recommendation for a in advices if a.run_id.split("/")[0] in complete
+    ), "three-pass captures exist and advice still recommends nothing"
+
+
+def test_a_recommendation_is_earned_by_a_sibling_that_kept_the_requirement(views):
+    """Every recommendation must be backed by a real witness, checked against the data."""
+    by_capture: dict[str, dict[str, set[str]]] = {}
+    for view in views:
+        by_capture.setdefault(view.capture, {})[view.auto_cleanup] = {
+            r.value.lower() for r in view.lost_requirements
+        }
+
+    checked = 0
+    for advice in advise(views):
+        if not advice.has_recommendation:
+            continue
+        capture = advice.run_id.split("/")[0]
+        here = by_capture[capture][advice.auto_cleanup]
+        there = by_capture[capture][advice.change_to]
+        for value in advice.would_recover:
+            assert value.lower() in here, f"{value!r} was not lost at {advice.auto_cleanup}"
+            assert value.lower() not in there, (
+                f"{value!r} was also lost at {advice.change_to}, so it is not a recovery"
+            )
+            checked += 1
+    assert checked, "no recommendation was verified against the data"
 
 
 def test_advice_would_recommend_when_the_evidence_supports_it():
@@ -423,7 +470,7 @@ def test_advice_refusal_states_the_right_reason(views):
     """Mutation: deleting the "nothing was lost" branch still refused, but for the
     wrong reason, saying the cause was unidentifiable when in fact nothing was lost.
     The reason text has to be pinned, not merely the fact of refusal."""
-    reasons = [a.reason.lower() for a in advise(views)]
+    reasons = [a.reason.lower() for a in advise(views) if not a.has_recommendation]
     categories = ("guess", "not identifiable", "number or a bare term")
     assert all(any(c in r for c in categories) for r in reasons), (
         "every refusal must fall into a named, explained category"

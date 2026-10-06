@@ -6,7 +6,7 @@
     "note": "Survival is token survival, not accuracy, and it is measured against a script rather than a transcript. These ranges exist to catch a regression in the pipeline, not to certify a benchmark. No requirement is declared must_keep, because nothing in this corpus survived at every setting and claiming otherwise would be a promise the evidence does not support.",
     "none": {
       "survival_range": [
-        0.9,
+        0.8,
         1.0
       ],
       "must_keep": []
@@ -180,24 +180,117 @@
           "note_id": "3afc201a-0f18-436c-b83e-8597b5f8a98c"
         }
       ]
+    },
+    {
+      "id": "u6",
+      "label": "u6 (sweep)",
+      "spoken": "Add a test file called test_score.py that pins the tokenizer, keep it under 200 lines, and never import pytest. Use difflib, not Levenshtein. Make the gap between items one rem and the border radius eight pixels. Do not use tabs.",
+      "runs": [
+        {
+          "id": "u6/None",
+          "auto_cleanup": "None",
+          "label": "u6 at None",
+          "received": "Add a test file called test\\_score\\_dot\\_py that tests the tokenizer. Keep it under 200 lines and never import pytest. Use difflib, not libstein. Make the gap between items 1rem and the order radius 8 pixels. Do not use tabs.",
+          "note_id": "7cded8f7-9570-48b7-9272-c33ed0ebaea1",
+          "captured_at": "2026-10-06T04:28:46.343196Z",
+          "capture_order_note": "Settings assigned by capture order. The sweep asks for None, Light, Medium in that order and these notes were created in that order; the API does not record which setting was active, so this is inferred from sequence, not read."
+        },
+        {
+          "id": "u6/Light",
+          "auto_cleanup": "Light",
+          "label": "u6 at Light",
+          "received": "- Add a test file called test\\_score.py that tests the tokenizer.\n- Keep it under 200 lines and never import pytest.\n- Use difflib not levenshtein.\n- Make the gap between items 1rem and the border radius 8px.\n- Do not use tabs.",
+          "note_id": "5101e19d-5c4c-4d0e-86f9-7a30c3a5a6c9",
+          "captured_at": "2026-10-06T04:30:07.256582Z",
+          "capture_order_note": "Settings assigned by capture order. The sweep asks for None, Light, Medium in that order and these notes were created in that order; the API does not record which setting was active, so this is inferred from sequence, not read."
+        },
+        {
+          "id": "u6/Medium",
+          "auto_cleanup": "Medium",
+          "label": "u6 at Medium",
+          "received": "- Add a test file called test\\_score.py that tests the tokenizer.\n- Keep it under 200 lines and never import pytest.\n- Use \\`difflib\\`, not \\`levenshtein\\`.\n- Make the gap between items on the rim at the border radius 8 px.\n- Do not use tabs.",
+          "note_id": "5d4a0597-4064-4382-8919-171f586cd2be",
+          "captured_at": "2026-10-06T04:31:04.788804Z",
+          "capture_order_note": "Settings assigned by capture order. The sweep asks for None, Light, Medium in that order and these notes were created in that order; the API does not record which setting was active, so this is inferred from sequence, not read."
+        }
+      ]
+    },
+    {
+      "id": "u7",
+      "label": "u7 (sweep)",
+      "spoken": "Refactor the aligner in align.py and keep the public function name as align_utterances. Never collapse insertions into deletions, because that hides what the recogniser actually changed. Set the threshold to 0.85, not 0.5. Name the helper diff_tokens.",
+      "runs": [
+        {
+          "id": "u7/None",
+          "auto_cleanup": "None",
+          "label": "u7 at None",
+          "received": "Refactor the aligner in align.py and keep the public function name as align\\_utterances. Never collapse insertions into deletions because that hides what the recognizer actually changed. Set the threshold to 0.85, not 0.5. Name the helper diff\\_tokens",
+          "note_id": "2d5b9f6a-221b-45f5-b26f-877455644b3b",
+          "captured_at": "2026-10-06T04:35:02.254257Z",
+          "capture_order_note": "Settings assigned by capture order. The sweep asks for None, Light, Medium in that order and these notes were created in that order; the API does not record which setting was active, so this is inferred from sequence, not read."
+        },
+        {
+          "id": "u7/Light",
+          "auto_cleanup": "Light",
+          "label": "u7 at Light",
+          "received": "Refactor the aligner in align.py and keep the public function name as \\`align\\_attentions\\`. Never collapse insertions into deletions because that hides what the recognizer actually changed. Set the threshold to 0.85.0.5. Name the helper \\`diff\\_tokens\\`.",
+          "note_id": "29fbea4b-ff1c-421c-8e1e-a5ee759cf33a",
+          "captured_at": "2026-10-06T04:36:09.779419Z",
+          "capture_order_note": "Settings assigned by capture order. The sweep asks for None, Light, Medium in that order and these notes were created in that order; the API does not record which setting was active, so this is inferred from sequence, not read."
+        },
+        {
+          "id": "u7/Medium",
+          "auto_cleanup": "Medium",
+          "label": "u7 at Medium",
+          "received": "Refactor the aligner in align.py and keep the public function name as \\`align\\_utterances\\`. Never collapse insertions into deletions because that hides what the recognizer actually changed. Set the threshold to 0.85, not 0.5. Name the helper \\`diff\\_tokens\\`",
+          "note_id": "b89243bb-20de-4d3a-a7b7-8ca3f464b5d3",
+          "captured_at": "2026-10-06T04:37:18.711527Z",
+          "capture_order_note": "Settings assigned by capture order. The sweep asks for None, Light, Medium in that order and these notes were created in that order; the API does not record which setting was active, so this is inferred from sequence, not read."
+        }
+      ]
+    },
+    {
+      "id": "u8",
+      "label": "u8 (sweep)",
+      "spoken": "Add a migration in db/migrate_0042.sql, and do not edit the down path. Keep the retry count at three and keep the backoff exponential rather than fixed. No console logging in score.py. Set the batch size to 250 rows, and do not add a sleep.",
+      "runs": [
+        {
+          "id": "u8/None",
+          "auto_cleanup": "None",
+          "label": "u8 at None",
+          "received": "Add a migration in db/migrate\\_0042.sql and do not edit the down path. Keep the retry count at three and keep the backoff exponential rather than fixed. No console logging in score.py. Set set the batch size to 250 rows and do not add a sleep.",
+          "note_id": "37a1a433-06ca-452b-b14a-edfd32744b32",
+          "captured_at": "2026-10-06T04:38:40.812644Z",
+          "capture_order_note": "Settings assigned by capture order. The sweep asks for None, Light, Medium in that order and these notes were created in that order; the API does not record which setting was active, so this is inferred from sequence, not read."
+        },
+        {
+          "id": "u8/Light",
+          "auto_cleanup": "Light",
+          "label": "u8 at Light",
+          "received": "- Add a migration in db/migrate/0042.sql and do not edit the down path.\n- Keep the retry count at 3 and keep the backoff exponential rather than fixed.\n- No console logging in score.py.\n- Set the batch size to 250 rows and do not add a sleep.",
+          "note_id": "4f0f7822-a602-4f4b-b018-d668abe6857c",
+          "captured_at": "2026-10-06T04:39:36.879752Z",
+          "capture_order_note": "Settings assigned by capture order. The sweep asks for None, Light, Medium in that order and these notes were created in that order; the API does not record which setting was active, so this is inferred from sequence, not read."
+        }
+      ]
     }
   ],
   "limitations": [
-    "Six captures and sixteen runs, one speaker, one session per day. That is enough to show an effect is real and to characterise its spread. No confidence interval is claimed, and the settings are not evenly sampled: two captures are missing one setting each, so n differs by row.",
-    "The utterances are technical instructions the author wrote and then read aloud, deliberately dense with filenames, numerals and prohibitions. They are not a random sample of development speech and the effects here are upper bounds on how often they occur.",
-    "The spoken side is the script, not a transcript. A local ASR engine read the same audio and disagreed with Wispr in both directions, so neither is treated as ground truth.",
+    "Nine captures, twenty-four runs, one speaker, one session per day. Enough to show an effect is real and to measure its spread. Not enough to characterise a distribution, and no confidence interval is claimed.",
+    "The setting each sweep run came from is inferred from capture order, not read from the app. The API does not record which Auto Cleanup level was active. u8 has no Medium run, so its n is two.",
+    "The utterances are technical instructions the author wrote and then read aloud, deliberately dense with filenames, numerals and prohibitions. They are not a random sample of development speech.",
+    "The spoken side is the script, not a transcript. A local ASR engine read some of the same audio and disagreed with Wispr in both directions, so neither is treated as ground truth.",
     "Number folding treats a bare unit word that is also a number word as a number, so 'one file' becomes '1 file'. Both sides fold identically so nothing is lost, but the token count is not the raw count of what was said.",
-    "A number run broken by a non-number word is left alone, so 'two point none' stays as written. That protects version strings at the cost of missing a decimal that was genuinely spelled out.",
-    "Backslash escaping is undone outside code spans as well as inside them, because escaped backticks make a code span impossible to detect reliably. A backslash that a reader would actually see is therefore scored as surviving.",
+    "Backslash escaping is undone everywhere, not only outside code spans. Escaped backticks make a code span impossible to detect reliably, so a backslash a reader would actually see is scored as surviving.",
     "Reading pace was not held constant across the passes.",
-    "Audio is not published, because it contains a voice."
+    "Audio is excluded from git, and none of it matches these captures anyway. The recordings predate the corpus restructure and document an earlier capture, which is not any capture here."
   ],
   "findings": [
-    "Cleanup is not reliably worse, it is wildly variable. Across these captures raw passthrough spans 4.8 points, Light 34.9 and Medium 41.0. On u4 both rewrite settings scored a clean 100% while raw passthrough scored 97.6%, and on u5 all three tied at 100%.",
-    "On u1, at both rewrite settings, 'no pytest' arrived as 'not pytest'. That is the opposite instruction, delivered without any error. Raw passthrough delivered it correctly.",
-    "On u1 the only requirement either rewrite setting lost was the version constraint 3.10; the filenames and the 0.7 threshold both arrived intact, because what had looked like filename damage was markdown escaping. On u4 the rewrite settings lost nothing at all. The same setting produced both.",
+    "Cleanup is not reliably worse, it is wildly variable. Across nine captures raw passthrough spans 15.0 points, Light 34.9 and Medium 41.0. Medium tied raw passthrough on u5, and beat it on u4.",
+    "On u1, at both rewrite settings, 'no pytest' arrived as 'not pytest'. That is the opposite instruction, delivered without any error.",
+    "That inversion did NOT reproduce. Three further prompts dense with prohibitions -- never, do not, no -- were dictated at all three settings, eight runs, and produced zero inversions. It remains the most serious observation in this corpus and it currently rests on one utterance out of nine. A pattern that appears once in nine captures is an anecdote with a measurement attached, not a rate.",
+    "A unit abbreviation is not a loss: '240 pixels' arriving as 240px still says 240, and '8 pixels' arriving as 8px still says 8. The mirror case, '1rem' becoming 'one rem', is a real loss, because a literal became prose.",
     "Spelled-out numbers and markdown-escaped identifiers were initially scored as losses. Both were scorer faults rather than pipeline damage, and fixing them moved every figure in this corpus.",
-    "The capture marker was itself subject to dictation corruption: across sixteen runs it arrived intact in six, as 'and utterance' in four and as a bare 'utterance' in three, and the remainder carried a trailing conjunction. Those remnants were stripped from the stored text before measurement, because scaffolding that survives into a measurement is scaffolding the tool has to know about.",
-    "A unit abbreviation is not a loss: '240 pixels' arriving as 240px still says 240, and '8 pixels' arriving as 8px still says 8. The mirror case, '1rem' becoming 'one rem', is a real loss, because a literal became prose."
+    "The rewrite settings rewrite most aggressively at Light on some prompts and at None on others. u7 lost a public function name and two numeric thresholds at Light and nothing at all at Medium. Which setting is safest is not a property of the setting."
   ]
 }

@@ -216,15 +216,53 @@ def _decode_tool_result(result: dict[str, Any]) -> Any:
     return result.get("structuredContent", result)
 
 
-def list_notes(token: str, query: str = "") -> list[dict[str, Any]]:
-    """Return Scratchpad notes, newest first."""
+MAX_NOTE_PAGES = 20
+"""How many pages of Scratchpad to walk before giving up.
+
+A page is 25 notes. Twenty pages is 500, which is far past any plausible working note count,
+and it exists so a malformed cursor cannot spin forever.
+"""
+
+
+def list_notes(token: str, query: str = "", all_pages: bool = True) -> list[dict[str, Any]]:
+    """Return Scratchpad notes, newest first.
+
+    Walks the cursor. It used to read one page and stop, and the endpoint answers with
+    `count: 25, has_more: true` and a `next_cursor` when there are more -- so the tool had
+    been silently working with a quarter of the notes and no indication of it.
+
+    That is not a theoretical limit. Running a capture, the notes created by that capture
+    were invisible to the tool that had just been asked to read one of them, so it matched a
+    stale note instead and reported the same text for all three Auto Cleanup settings. The
+    sweep recorded nine runs; three were real dictations and six were an older note read
+    repeatedly.
+    """
     _initialize(token)
-    payload = _call(token, "search_scratchpad_notes", {"query": query}, 2)
-    if isinstance(payload, dict):
-        return list(payload.get("notes") or [])
-    if isinstance(payload, list):
-        return payload
-    return []
+    out: list[dict[str, Any]] = []
+    cursor: str | None = None
+    call_id = 2
+
+    for _ in range(MAX_NOTE_PAGES):
+        arguments: dict[str, Any] = {"query": query}
+        if cursor:
+            arguments["cursor"] = cursor
+        payload = _call(token, "search_scratchpad_notes", arguments, call_id)
+        call_id += 1
+
+        if isinstance(payload, list):
+            return payload + out
+        if not isinstance(payload, dict):
+            return out
+
+        out.extend(payload.get("notes") or [])
+        if not payload.get("has_more"):
+            return out
+        cursor = payload.get("next_cursor") or payload.get("nextCursor")
+        if not cursor:
+            # says more, gives nothing to continue with. Stop rather than loop.
+            return out
+
+    return out
 
 
 def get_note(token: str, note_id: str) -> dict[str, Any]:

@@ -187,7 +187,7 @@ for cap in corpus['captures']:
     spread = out['spread']
     inversions = ','.join(sorted(i.arrived for _, i in out['inversions']))
     recs = out['recommendations']
-    recovered = sorted(r['would_recover'][0] for r in recs if r['would_recover'])
+    recovered = sorted(x for r in recs for x in r['would_recover'])
     print(f'{cid}\t{spread:.4f}\t{len(recs)}\t' + ','.join(recovered) + '\t' + inversions)
 "`],
     { encoding: "utf8" }
